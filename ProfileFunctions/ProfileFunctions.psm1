@@ -45,7 +45,7 @@ Write-Output "Loading PowerShell `$Profile: $PSCommandPath`n";
 write-output "`nloading ProfileFunctions"; import-module ProfileFunctions -verbose;
 
 
-if (![bool](Get-Alias rdp)) {
+if (![bool](Get-Alias rdp -ErrorAction SilentlyContinue)) {
     # rdp alias not yet set, so let's add it
     New-Alias -Name rdp -Value Start-RemoteDesktop
 }
