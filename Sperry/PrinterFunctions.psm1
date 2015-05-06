@@ -3,8 +3,10 @@
     PrinterFunctions Module contains functions that help make it easier to interact with printer ports via WMI (for backward compatability).
 .DESCRIPTION
     PrinterFunctions.psm1 - Provides common functions for retrieving info and controlling printer settings
-
 #>
+
+# Define new global variable for default printer
+New-Variable -Name DefaultPrinter -Description 'Default Printer' -Scope Global
 
 function Get-Printer {
     [CmdletBinding()]
@@ -37,15 +39,16 @@ function Get-Printer {
     Show-Progress -msgAction Start -msgSource $PSCmdlet.MyInvocation.MyCommand.Name
     [string]$CIMfilter;
 
-    if ($Default) { $CIMfilter = "Default='True'"; }
-        
-    elseif ($Local) { $CIMfilter = "Local='True'"; } 
-
+    if ($Default)     { $CIMfilter = "Default='True'"; }
+    elseif ($Local)   { $CIMfilter = "Local='True'"; } 
     elseif ($Network) { $CIMfilter = "Network='True'"; } 
 
     # else  $CIMfilter remains $null, so returns all results
 
-    Get-CimInstance -ClassName Win32_Printer -Filter $CIMfilter | format-table -Property Name,ShareName,SystemName,Default,Local,Network -AutoSize
+    $printerInfo = Get-CimInstance -ClassName Win32_Printer -Filter $CIMfilter | format-table -Property Name,ShareName,SystemName,Default,Local,Network -AutoSize
+
+    # If default printer was retrieved, update 
+    if ($Default) { $DefaultPrinter = $printerInfo }
 
     Show-Progress -msgAction Stop -msgSource $PSCmdlet.MyInvocation.MyCommand.Name
 }
@@ -89,3 +92,4 @@ AUTHOR      :  Bryan Dady
     
 }
 
+Export-ModuleMember -Function Get-Printer, Get-Printer -Variable DefaultPrinter

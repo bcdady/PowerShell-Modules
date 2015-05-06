@@ -33,7 +33,8 @@ function Get-IECookies {
         $cookieURI
         
     )
-    Show-Progress 'Start'; # Log start timestamp
+
+    Show-Progress -msgAction Start -msgSource $PSCmdlet.MyInvocation.MyCommand.Name;
     $cookieFiles = @(Get-Childitem ([system.environment]::getfolderpath('cookies')) | Select-String -Pattern "$cookieURI" | Select-Object -Unique Path, Line); #  | Format-List -Property *
 
     if ($cookieFiles -ne $null) {
@@ -41,17 +42,17 @@ function Get-IECookies {
             $cookieFiles += $PSItem
         }
     }
-    Show-Progress 'Stop'; # Log end timestamp
+    Show-Progress -msgAction Stop -msgSource $PSCmdlet.MyInvocation.MyCommand.Name; # Log end timestamp
     return $cookieFiles;
 }
 
 function Clear-IECookies {
     param ( [String]$URL )
 
-#    Show-Progress 'Start'; # Log start timestamp
+    Show-Progress -msgAction Start -msgSource $PSCmdlet.MyInvocation.MyCommand.Name; # Log start timestamp
     Get-IECookies -cookieURI $URL | ForEach-Object {
         write-output "Remove-Item -Path $($PSItem.Path)"
         Remove-Item -Path $PSItem.Path -Force;
     }
-#    Show-Progress 'Stop'; # Log end timestamp
+    Show-Progress -msgAction Stop -msgSource $PSCmdlet.MyInvocation.MyCommand.Name; # Log end timestamp
 }

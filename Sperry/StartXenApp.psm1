@@ -135,3 +135,5 @@ function Start-XenApp {
 
     Show-Progress -msgAction Stop -msgSource $PSCmdlet.MyInvocation.MyCommand.Name
 }
+
+Export-ModuleMember -function Start-XenApp;

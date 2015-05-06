@@ -1,3 +1,4 @@
+
 <#
 .SYNOPSIS
 	checkProcess.ps1 is designed to simplify process management for frequently used executables / applications.
@@ -27,6 +28,7 @@
     DATE	: 11/25/09
     COMMENT	: Shared script for controlling a common set of processes for various modes
             : History - 2014 Jun 25 Added / updated Citrix knownPaths
+            : History - 2015 Mar 20 Moved Citrix knownPaths and related PNAgent.exe controll to StartXenApp.ps1, and incorporated both checkProcess.ps1 and StartXenApp.ps1 into the recently crafted Sperry Module for PowerShell 
 	
 .LINK
 	https://URL
@@ -37,26 +39,28 @@
 #Requires -Version 3.0 -Modules PSLogger
 
 $myName = $MyInvocation.MyCommand.Name; # Contains only filename.ext leaf; for full path and filename, use $PSCommandPath
-push-location $PSScriptRoot; # for PS2 compatibility, use & $myPath = split-path $MyInvocation.MyCommand.Path; push-location $myPath
 [bool]$prompt  = $false;
 
 # Setup necessary configs for PSLogger's Write-Log cmdlet
 [cmdletbinding()]
 $loggingPreference='Continue';
-$loggingPath = "$env:userprofile\Documents\WindowsPowerShell\log"
-$logFileDateString = get-date -UFormat '%Y%m%d';
 
-# Use regular expression make a .log file that matches this scripts name; makes logging portable
+<# Use regular expression make a .log file that matches this scripts name; makes logging portable
 $MyInvocation.MyCommand.Name -match "(.*)\.\w{2,3}?$" *>$NULL; $myLogName = $Matches.1;
-$loggingFilePreference = Join-Path -Path $loggingPath -ChildPath "$myLogName-$logFileDateString.log"
+$logFilePref = Join-Path -Path $loggingPath -ChildPath "$myLogName-$logFileDateString.log"
+#>
 
-# Detect -debug mode:
+<# Detect -debug mode:
 # https://kevsor1.wordpress.com/2011/11/03/powershell-v2-detecting-verbose-debug-and-other-bound-parameters/
 # RFE : also update other modules (esp. PSLogger) and scripts with same logging functionality
 if ($PSBoundParameters['Debug'].IsPresent) {
 	[bool]$testMode = $true; 
-    $loggingFilePreference = Join-Path -Path $loggingPath -ChildPath "$myLogName-test-$logFileDateString.log"
+    $logFilePref = Join-Path -Path $loggingPath -ChildPath "$myLogName-test-$logFileDateString.log"
+} else {
+	[bool]$testMode = $false; 
+    $logFilePref = Join-Path -Path $loggingPath -ChildPath "$myLogName-$logFileDateString.log"
 }
+#>
 
 # =======================================
 # Start with empty process arguments / parameters 
@@ -64,18 +68,20 @@ $CPargs   = '';
 # Define hash/associative array of known paths for executable files
 # IMPORTANT: key needs to match executable name for STOP and wait modes to work
 # NOTE: start arguments are added later so that the same key can be used for starting and stopping processes
-$knownPaths = @{
+[hashtable]$knownPaths = @{
     almon		= "$env:ProgramFiles\Sophos\AutoUpdate\ALMon.exe";
     bttray		= "$env:ProgramFiles\WIDCOMM\Bluetooth Software\BTTray.exe";
     cdfsvc		= "$env:CommonProgramFiles(x86)\Citrix\System32\CdfSvc.exe";
-    chrome		= "$env:SystemDrive:\SWTOOLS\PortableApps\GoogleChromePortable\App\Chrome-bin\chrome.exe";
+    chrome		= "$env:SystemDrive\SWTOOLS\PortableApps\GoogleChromePortable\App\Chrome-bin\chrome.exe";
     communicator = "$env:ProgramFiles\Microsoft Office Communicator\communicator.exe";
     concentr    = "${env:ProgramFiles(x86)}\Citrix\ICA Client\concentr.exe";
     dropbox 	= "$env:APPDATA\Dropbox\bin\Dropbox.exe";
     evernote    = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Evernote\Evernote.lnk";
+    Firefox     = "$env:SystemDrive\SWTOOLS\\PortableApps\FirefoxPortable\FirefoxPortable.exe";
     iexplore    = "$env:ProgramFiles\Internet Explorer\iexplore.exe";
     katmouse    = "$env:ProgramFiles\KatMouse\KatMouse.exe";
     LastPass	= "$env:AppData\Microsoft\Windows\Start Menu\Programs\Startup\LastPass For Applications.lnk";
+    mobilepass  = "$env:SystemDrive\SWTOOLS\MobilePass\MobilePass.exe";
     msosync		= "$env:ProgramFiles\Microsoft Office\Office14\MSOSYNC.exe";
     NitroPDFReader = "${env:ProgramFiles(x86)}\Nitro\Reader 3\NitroPDFReader.exe";
     nsepa		= "$env:ProgramFiles\Citrix\Secure Access Client\nsepa.exe";
@@ -85,14 +91,13 @@ $knownPaths = @{
     outlook		= "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Microsoft Office\Microsoft Outlook 2010.lnk";
     pnagent		= "${env:ProgramFiles(x86)}\Citrix\ICA Client\pnagent.exe";
     pnamain		= "${env:ProgramFiles(x86)}\Citrix\ICA Client\pnamain.exe";
-    procexp		= "$env:SystemDrive:\SWTOOLS\SysinternalsSuite\procexp64.exe";
-    puretext	= "$env:SystemDrive:\SWTOOLS\Utilities\PureText.exe";
+    procexp		= "$env:SystemDrive\SWTOOLS\SysinternalsSuite\procexp64.exe";
+    puretext	= "$env:SystemDrive\SWTOOLS\Utilities\PureText.exe";
     radeobj		= "${env:ProgramFiles(x86)}\Citrix\Streaming Client\RadeObj.exe";
     receiver    = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Citrix\Receiver.lnk"; 
     redirector  = "${env:ProgramFiles(x86)}\Citrix\ICA Client\redirector.exe";
-    shmobile    = "$env:ProgramFiles\Riverbed\Steelhead Mobile\shmobile.exe";
     ssonsvr		= "${env:ProgramFiles(x86)}\Citrix\ICA Client\ssonsvr.exe";
-    taskmgr		= "$env:SystemDrive:\SWTOOLS\SysinternalsSuite\procexp.exe";
+    taskmgr		= "$env:SystemDrive\SWTOOLS\SysinternalsSuite\procexp.exe";
     wfcrun32    = "${env:ProgramFiles(x86)}\Citrix\ICA Client\wfcrun32.exe";
     wfica32		= "${env:ProgramFiles(x86)}\Citrix\ICA Client\WFICA32.exe";
     xmarkssync  = "$env:ProgramFiles\Xmarks\IE Extension\xmarkssync.exe";
@@ -100,25 +105,6 @@ $knownPaths = @{
 
 # Predefine 'prompt-list' to control which processes invoke user approval and which ones terminate silently
 $askTerminate =@('receiver','outlook','iexplore','chrome','firefox');
-
-# Predefine XenApp Qlaunch arguments for running Citrix [pnagent] applications
-$XenApps = @{
-	assyst		= 'GBCI02XA:Assyst';
-	communicator = 'GBCI02XA:Office Communicator';
-	ocs 		= 'GBCI02XA:Office Communicator';
-	excel		= 'GBCI02XA:Microsoft Excel 2010'
-	h_drive 	= 'GBCI02XA:H Drive';
-	IE			= 'GBCI02XA:Internet Explorer';
-	IE_11		= 'GBCI02XA:Internet Explorer 11';
-	itsc		= 'GBCI02XA:IT Service Center';
-	mstsc		= 'GBCI02XA:RDP Client';
-	onenote 	= 'GBCI02XA:Microsoft OneNote 2010'
-	outlook 	= 'GBCI02XA:Microsoft Outlook 2010';
-	rdp			= 'GBCI02XA:RDP Client';
-	s_drive 	= 'GBCI02XA:S Drive';
-	word		= 'GBCI02XA:Microsoft Word 2010'
-	visio		= 'GBCI02XA:Microsoft Visio 2013'
-}
 
 # Pre-defined procedures
 # =======================================
@@ -128,70 +114,82 @@ function Set-ProcessState {
 	# Setup Advanced Function Parameters
 	[cmdletbinding()]
 	Param (
-		[parameter(Position=0,Mandatory=$true)]
-		[ValidateLength(1,100)]
+		[parameter(Position=0)]
+        [ValidateNotNullOrEmpty()]
 		[String[]]
-		$processName,
+		$ProcessName,
+
 		[parameter(Position=1)]
 		[ValidateSet('Start', 'Stop', 'Test')]
 		[String[]]
-		$mode
+		$Action,
+
+        [Parameter(Position=2)]
+        [ValidateNotNullOrEmpty()]
+        [Alias('list', 'show', 'enumerate')]
+        [switch] 
+        $ListAvailable
+
 	  ) 
-	#$PSBoundParameters
-	$process = Get-Process $processName -ErrorAction:SilentlyContinue;
-	switch ($mode) {
+
+    if ($PSBoundParameters.ContainsKey('ListAvailable')) { 
+        Write-Log -Message "`nEnumerating all available `$XenApps Keys" -Function ProcessState -Verbose;
+		$knownPaths | Sort-Object -Property Name | format-table -AutoSize
+    } else {
+	    $process = Get-Process $ProcessName -ErrorAction:SilentlyContinue;
+    }
+
+	switch ($action) {
 	    'Start' { if (!($?)) {
 		# unsuccessful getting $process aka NOT running
-		if ($knownPaths.Keys -contains $processName) {
+		if ($knownPaths.Keys -contains $ProcessName) {
 			# specify unique launch/start parameters
-			switch ($processName) {
+			switch ($ProcessName) {
 				'receiver'		{$CPargs = '/startup';}
 				'concentr'		{$CPargs = '/startup';}
-				# "communicator" {$CPargs = '/fromrunkey';}
 				'evernote'		{$CPargs = '/minimized';}
 				'xmarkssync'	{$CPargs = '-q';}
-				'taskmgr'		{ $CPargs = '/t'; }
+				'taskmgr'		{$CPargs = '/t'; }
 			}
-			# launch process from known path
-			$param_length = ($CPargs | measure-object -Character);
-			if ($param_length.Characters -gt 1) {
-				write-log "Starting $processName -ArgumentList $CPargs";
-				Start-Process $knownPaths.$processName -ArgumentList $CPargs;
+			# launch process from known path, with specified argument(s)
+			if (($CPargs | measure-object -Character).Characters -gt 1) {
+				Write-Log -Message "Starting $ProcessName < $knownPaths["$ProcessName"] > -ArgumentList $CPargs" -Function ProcessState;
+                Start-Process -FilePath $knownPaths["$ProcessName"] -ArgumentList $CPargs -WindowStyle Minimized
 			} else {
-				# DEBUG write-host "Launching '$processName' from "$knownPaths.$processName -foregroundcolor "yellow";
-				write-log "Starting $processName : $($knownPaths.$processName)" -verbose;
-				Start-Process $($knownPaths.$processName);
+				# no ArgumentList
+				Write-Log -Message "Starting $ProcessName < $knownPaths["$ProcessName"] >" -Function ProcessState
+                Start-Process -FilePath $knownPaths["$ProcessName"] -WindowStyle Minimized
 			}
 		} else {
-			write-log "Path to launch '$processName' is undefined" -verbose;
+			Write-Log -Message "Path to launch '$ProcessName' is undefined" -Function ProcessState  -verbose;
 		}
 		}	
 	}
         'Stop' { if ($?) {
 		# $process is running
-		if ($askTerminate -contains $processName) {
+		if ($askTerminate -contains $ProcessName) {
 			# processName is running, prompt to close
-			write-log "$processName is running."
-			$confirm = Read-Host "`n # ACTION REQUIRED # `nClose $processName, then type ok and click [Enter] to proceed.`n"
+			write-log "$ProcessName is running."
+			$confirm = Read-Host "`n # ACTION REQUIRED # `nClose $ProcessName, then type ok and click [Enter] to proceed.`n"
 		while (!($prompt )) {
 			if($confirm -ilike 'ok') { $prompt = $true }
 			else {
-				Write-log "Invalid response '$confirm'" -verbose;
-				$confirm = Read-Host "`n # ACTION REQUIRED # `nType ok and click [Enter] once $processName is terminated."
+				Write-Log -Message "Invalid response '$confirm'" -Function ProcessState  -verbose;
+				$confirm = Read-Host "`n # ACTION REQUIRED # `nType ok and click [Enter] once $ProcessName is terminated."
 			}
 		}
 		start-sleep 1; # wait one second to allow time for $process to stop
 		# Check if the process was stopped after we asked
-		$process = Get-Process $processName -ErrorAction:SilentlyContinue
+		$process = Get-Process $ProcessName -ErrorAction:SilentlyContinue
 		while ($process) {
             # Application/process is still running, prompt to terminate
-            Write-log "$processName is still running." -verbose;
+            Write-Log -Message "$ProcessName is still running." -Function ProcessState  -verbose;
             $response = Read-Host "Would you like to force terminate? `n[Y] Yes  [N] No  (default is 'null'):"
             if($response -ilike 'Y') {
 				# Special handling for Citrix PNAgent
-				if (($processName -eq 'receiver') -or ($processName -eq 'pnamain')) {
+				if (($ProcessName -eq 'receiver') -or ($ProcessName -eq 'pnamain')) {
 					# If we try to stop Citrix Receiver; we first try to terminate these related processes / services in a graceful order
-					write-log 'Stopping Citrix Receiver (and related processes, services)' -verbose;
+					Write-Log -Message 'Stopping Citrix Receiver (and related processes, services)' -Function ProcessState  -verbose;
 					start-process $knownPaths.pnagent -ArgumentList '/terminatewait' -RedirectStandardOutput .\pnagent-termwait.log -RedirectStandardError .\pnagent-twerr.log;
 					start-process $knownPaths.concentr -ArgumentList '/terminate' -RedirectStandardOutput .\pnagent-term.log -RedirectStandardError .\pnagent-termerr.log;
 					Stop-Service -Name cdfsvc -force; # Citrix Diagnostic Facility COM Server
@@ -207,59 +205,87 @@ function Set-ProcessState {
 				#	Set-ProcessState pnamain Stop; # Citrix 
 					Set-ProcessState receiver Stop; # Citrix
 				}
-				terminate($process)
+                # if not Citrix Special handling is needed, then we stop the process
+				$process | foreach {stop-process terminate($process).id};
 			} elseif($response -ilike 'N') {
 			# manually override termination
-			break
+			break;
 		} else {
-			Write-log "Invalid response '$response'." - verbose;
+			Write-Log -Message "Invalid response '$response'." -Function ProcessState  - verbose;
 		}
 		# confirm process is terminated
-		$process = Get-Process $processName -ErrorAction:SilentlyContinue | out-null
+		$process = Get-Process $ProcessName -ErrorAction:SilentlyContinue | out-null
 		}
                 } else {
                     # kill the process
-                    terminate($process)
+                    $process | foreach {stop-process terminate($process).id};
                 }
             }
         }
-        default {
+        'Test' {
             # default mode is a wait mode
-            # Write-Warning "$myName: waiting for $processName"
-            # Check if $processName is running
-            write-log "Checking if $processName is running";
+            # Write-Warning "$myName: waiting for $ProcessName"
+            # Check if $ProcessName is running
+            Write-Log -Message "Checking if $ProcessName is running" -Function ProcessState
             start-sleep -Milliseconds 500;
-            $process = Get-Process $processName -ErrorAction:SilentlyContinue # | out-null
+            $process = Get-Process $ProcessName -ErrorAction:SilentlyContinue # | out-null
             while ($process) {
                 # it appears to be running; let's wait for it
                 $counter = 0; # we always start from zero
                 $waitTime = 5 # Define how many seconds we want to wait per loop
                 while ($counter -lt $waitTime) {
-                    write-progress -activity "Waiting for $processName" -status 'ctrl-c to break the loop' -percentcomplete ($counter/$waitTime*100)
+                    write-progress -activity "Waiting for $ProcessName" -status 'ctrl-c to break the loop' -percentcomplete ($counter/$waitTime*100)
                     Start-Sleep -Seconds 2;
                     $counter++;
                 }
-                write-log "   still waiting for $processName" -verbose;
+                Write-Log -Message "   still waiting for $ProcessName" -Function ProcessState  -verbose;
                 # check again
-                $process = Get-Process $processName -ErrorAction:SilentlyContinue; #| out-null
+                $process = Get-Process $ProcessName -ErrorAction:SilentlyContinue; #| out-null
             }
-            write-progress -activity "Waiting for $processName" -status '.' -Completed #-percentcomplete (100)
+            write-progress -activity "Waiting for $ProcessName" -status '.' -Completed #-percentcomplete (100)
+        }
+       # default {}
+    }
+}
+
+function Test-ProcessState {
+	# Setup Advanced Function Parameters
+	[cmdletbinding()]
+	Param (
+		[parameter(Position=0)]
+        [ValidateNotNullOrEmpty()]
+		[String[]]
+		$ProcessName,
+
+        [Parameter(Position=2)]
+        [ValidateNotNullOrEmpty()]
+        [Alias('list', 'show', 'enumerate')]
+        [switch] 
+        $ListAvailable
+
+	  ) 
+
+    if ($PSBoundParameters.ContainsKey('ListAvailable')) { 
+        Write-Log -Message "`nEvaluating predefined process paths" -Function ProcessState -Verbose;
+        foreach ($app in $knownPaths.Keys) {
+            write-Debug -Message "$app = $($knownPaths.$app)";
+            if (Test-Path -Path $knownPaths.$app -PathType Leaf) {
+                Write-output -InputObject "Confirmed $app target at path $($knownPaths.$app)";
+            } else {
+                Write-Warning -Message "Unable to confirm $app target at path $($knownPaths.$app)";
+            }
+        }
+		# $knownPaths | Sort-Object -Property Name | format-table -AutoSize
+    } else {
+        # Check if $ProcessName is running
+        Write-Log -Message "Checking if $ProcessName is running" -Function ProcessState
+        start-sleep -Milliseconds 500;
+        $process = Get-Process $ProcessName -ErrorAction:SilentlyContinue # | out-null
+        if ($process) {
+            # it appears to be running
+            return $true;
+        } else {
+            return $false;
         }
     }
 }
-
-function terminate($process) {
-    # Check what we got; it could be a single process object or a collection of them
-<#	if (($process.count) -gt 1) {
-	 | Measure-Object | Select Count) -ne 0) {
-#>
-        # We found more than one running process to kill
-        $process | foreach {stop-process $_.id}
-<#    } else {
-        # otherwise, just kill the one process
-        stop-process $process.id
-        Start-Sleep -s 1 # wait just a sec to make sure it's gone
-    }
-#>
-}
-
