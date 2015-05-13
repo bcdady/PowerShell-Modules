@@ -1,33 +1,35 @@
 ﻿#requires -version 2.0
-# -----------------------------------------------------------------------------
-# Script: PSLogger.psm1
-# Version: 1.1
-# Original Write-Log Author: Jeffery Hicks
-#    http://jdhitsolutions.com/blog
-#    http://twitter.com/JeffHicks
-# Date: 3/3/2011
-# Keywords: Verbose, Logging
-# Comments: "Those who neglect to script are doomed to repeat their work."
-#
-# Converted to PS Module and enhanced (if I may be so bold as to attempt to build upon Jeff's work) by Bryan Dady
-#
-#  ****************************************************************
-#  * DO NOT USE IN A PRODUCTION ENVIRONMENT UNTIL YOU HAVE TESTED *
-#  * THOROUGHLY IN A LAB ENVIRONMENT. USE AT YOUR OWN RISK.  IF   *
-#  * YOU DO NOT UNDERSTAND WHAT THIS SCRIPT DOES OR HOW IT WORKS, *
-#  * DO NOT USE IT OUTSIDE OF A SECURE, TEST SETTING.             *
-#  ****************************************************************
-# -----------------------------------------------------------------------------
+<#
+.SYNOPSIS
+  PSLogger is a PowerShell module to enhance and simplify interacting with log files on the file system.
+.DESCRIPTION
+  PSLogger provides functions to Write logs, find / enumerate recently written log files, and Read the latest lines of recent .log files.
+.NOTES
+  NAME        :  PSLogger
+  VERSION     :  2.1.1   
+  LAST UPDATED:  5/12/2015
+  AUTHOR      :  Bryan Dady
+  Original Write-Log Author: Jeffery Hicks
+    http://jdhitsolutions.com/blog
+    http://twitter.com/JeffHicks
+    Date: 3/3/2011
+.LINK
+  https://github.com/bcdady/
+.LINK
+  http://bryan.dady.us
+.LINK
+  http://twittter.com/bcdady
+#>
 
 # Setup necessary configs for PSLogger's Write-Log cmdlet
 [string]$loggingPreference='Continue'; # set $loggingPreference to anything other than continue, to leverage write-debug or write-verbose, without writing to a log on the filesystem
 [string]$loggingPath = "$env:userprofile\Documents\WindowsPowerShell\log"
 [string]$logFileDateString = get-date -UFormat '%Y%m%d'; # Need to keep an eye on this one, in case PowerShell sessions run for multiple days, I doubt this variable value will be refreshed / updated
-[string]$LastFunction = '';
+# [string]$LastFunction;
+New-Variable -Name LastFunction -Description "Retain 'state' of the last function name called, to streamline logging statements from the same function" -Force -Scope Global -Visibility Public
 [bool]$writeIntro=$true
 
 Function Write-Log {
-
 <#
    .Synopsis
         Write a message to a log file. 
@@ -86,7 +88,6 @@ TryMe -log e:\logs\sample.txt -verbose
     .Link
         Write-Verbose
 #>
-
     [cmdletbinding()]
     Param(
         [Parameter(Mandatory=$true, Position=0, ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true, HelpMessage='The message string to write to the log file. It will be prepended with a date time stamp.')]
@@ -102,7 +103,7 @@ TryMe -log e:\logs\sample.txt -verbose
         [ValidateNotNullOrEmpty()]
         [Alias('Action', 'Source')]
         [String]
-        $Function = 'PowerShell',
+        $Function,
 
         [Parameter(Position=2,
                    ValueFromPipeline=$true,
@@ -114,28 +115,44 @@ TryMe -log e:\logs\sample.txt -verbose
 
     )
 
+# * DEBUG * show bound parameters
+#    $PSBoundParameters;
+
     # Detect -debug mode:
     # http://blogs.msdn.com/b/powershell/archive/2009/04/06/checking-for-bound-parameters.aspx
     # https://kevsor1.wordpress.com/2011/11/03/powershell-v2-detecting-verbose-debug-and-other-bound-parameters/
     if ($PSBoundParameters['Debug'].IsPresent) {
 	    [bool]$testMode = $true; 
-        $logFilePref = Join-Path -Path $loggingPath -ChildPath "$Function-test-$logFileDateString.log"
+        $logFilePref = Join-Path -Path "$loggingPath\testing" -ChildPath "$("$Function", "$logFileDateString" -join '_').log"
     } else {
 	    [bool]$testMode = $false; 
-        $logFilePref = Join-Path -Path $loggingPath -ChildPath "$Function-$logFileDateString.log"
+        $logFilePref = Join-Path -Path "$loggingPath" -ChildPath "$("$Function", "$logFileDateString" -join '_').log"; # "$Function_$logFileDateString.log"
     }
 
-    # Detect if this Function is the same as the $LastFunction. If not, verbosely log which new Function is Active
-    if ($Function -ne $LastFunction) {$writeIntro=$true} else {$writeIntro=$false}
-
+    # Detect if this Function is the same as the $LastFunction. If not, verbosely log which new Function is active
+#  RFE :: Set Function to 'PowerShell' if blank
+<#    if ($Function -eq $LastFunction) {
+        # Retain 'state' of the last function name called, to streamline logging statements from the same function
+        Write-Output -Message "Function is $Function";
+        Write-Output -Message "LastFunction is $LastFunction";
+        $writeIntro=$false;
+    } else {
+        Write-Log -Message "Shifting from LastFunction $LastFunction to $Function, so `$writeIntro=`$true" -Function $MyInvocation.MyCommand.Name;
+        Set-Variable -Name LastFunction -Value $Function -Force -Scope Global
+        $writeIntro=$true;
+        Write-Debug -Message "LastFunction is now $LastFunction" -Function $MyInvocation.MyCommand.Name -Debug;
+    }
+#>
     #Pass on the message to Write-Debug cmdlet if -Debug parameter was used
-    Write-Debug -Message $Message;
-    if ($writeIntro -and ( $Message -notlike 'Exit*')) {Write-Host -Message "Logging [Debug] to $logFilePref`n" };
+    if ($testMode) {
+        Write-Debug -Message $Message;
+        if ($writeIntro -and ( $Message -notlike 'Exit*')) {Write-Host -Object "Logging [Debug] to $logFilePref`n" };
+    } elseif ($PSBoundParameters['Verbose'].IsPresent) {
+        #Pass on the message to Write-Verbose cmdlet if -Verbose parameter was used
+        Write-Verbose -Message $Message;
+        if ($writeIntro -and ( $Message -notlike 'Exit*')) { Write-Host -Object "Logging [Verbose] to $logFilePref`n" };
+    }
 
-    #Pass on the message to Write-Verbose cmdlet if -Verbose parameter was used
-    Write-Verbose -Message $Message;
-    if ($writeIntro -and ( $Message -notlike 'Exit*')) { Write-Host -Message "Logging [Verbose] to $logFilePref`n" };
-    
     #only write to the log file if the $LoggingPreference variable is set to Continue
     if ($LoggingPreference -eq 'Continue') {
     
@@ -146,16 +163,96 @@ TryMe -log e:\logs\sample.txt -verbose
 		    $LogFile=$Path
         }
         if ($testMode) {
-            Write-Output "$(Get-Date) [Debug]$Message" | Out-File -FilePath $LogFile -Append
+            Write-Output "$(Get-Date) [Debug] $Message" -NoEnumerate | Out-File -FilePath $LogFile -Append
         } elseif ($PSBoundParameters['Verbose'].IsPresent) {
-            Write-Output "$(Get-Date) [Verbose]$Message" | Out-File -FilePath $LogFile -Append
+            Write-Output "$(Get-Date) [Verbose] $Message" -NoEnumerate | Out-File -FilePath $LogFile -Append
         } else {
-            Write-Output "$(Get-Date) $Message" | Out-File -FilePath $LogFile -Append
+            Write-Output "$(Get-Date) $Message" -NoEnumerate | Out-File -FilePath $LogFile -Append
         }
     }
 
-    $LastFunction = $Function; # retain 'state' of the last function name called, to simplify future logging statements from the same function
+} #end function
+
+Function Read-Log {
+<#
+   .Synopsis
+        Reads the latest log file, optionally displaying only the latest number of specified lines
+    .Description
+        Intended as a complement to the Write-Log function provided within the PSLogger module, Read-Log will find the latest log file in the
+        defined $loggingPath directory, and return some basic stats of that file, as well as get it's contents for review
+    .Parameter MessageSource
+        The message source is an optional parameter that specifies which module, function, or script wrote the log file to be retrieved.
+        If this parameter is not specified, function returns the latest available log file, regardless of message source.
+        The value of this parameter becomes a filter to the search of .log files within the $loggingPath directory.
+    .Parameter lineCount
+        The most recent number of lines from the log file in question.
+        unless the $logFilePref variable is found. If so, then this value will be used.
+   .Example
+        PS .\> Read-Log
+
+        Returns basic file properties, and last 10 lines, of the latest / newest log file found in $loggingPath directory
+
+   .Example
+        PS .\> Read-Log -MessageSource Get-Profile -lineCount 30
+
+        Returns latest log file, reading the latest 30 lines, specific to function Get-Profile
+       
+   .Notes
+        NAME: Read-Log
+        AUTHOR: Bryan Dady
+        VERSION: 1.0
+        LASTEDIT: 04/15/2015
+
+    .Output
+        Matches default properties return the same as Get-Item:
+        * Name
+        * LastWriteTime
+        * Length
+        * Path     
+#>
+    [cmdletbinding()]
+    Param(
+        [Parameter(
+            Mandatory=$false,
+            Position=0,
+            HelpMessage='The message source typically matches a log filename prefix, which represents the name of the function or module which wrote the log file.'
+        )]
+        [Alias('function','source','f','m')]
+        [string]
+        $MessageSource,
+
+        [Parameter(
+            Mandatory=$false, 
+            Position=1,
+            HelpMessage='Provide an integer of line numbers to read from the bottom of the log file.'
+        )]
+        [ValidateNotNullOrEmpty()]
+        [Alias('lines', 'l')]
+        [int16]
+        $lineCount=10
+    )
+    # Use write-output instead of write-log, so that the function of reading log files does not write new log files to be read
+    Write-Output -InputObject "Selecting latest log file to read last $lineCount lines";
+
+    # Select the newest (1) file (most recent LastWriteTime), with an optional filter, based on MessageSource parameter
+    $latestLogFile = Get-ChildItem -Path $loggingPath -Filter *$MessageSource* -File | Sort-Object -Property LastWriteTime -Descending | Select-Object -First 1;
+
+    if (Test-Path -Path $latestLogFile -PathType Leaf -IsValid) {
+        Write-Output -InputObject "Selected $latestLogFile";
+        $latestLogFile | Select-Object -Property Name,LastWriteTime | Format-List
+        if ($lineCount -gt 0) {
+            Write-Output -InputObject "`n ... ";
+            $latestLogFile | Get-Content -Tail $lineCount;
+            Write-Output -InputObject "`n[EOF]`n";
+        }
+    } else {
+        Write-Warning -Message "Could not open $latestLogFile for reading";
+    }
 
 } #end function
 
-Export-ModuleMember -function Write-Log, Show-Progress, Backup-Logs
+Function Get-LatestLogs {
+    Get-ChildItem $env:userprofile\Documents\WindowsPowerShell\log | Sort-Object -Descending -Property LastWriteTime | Select-Object -First 10
+}
+
+Export-ModuleMember -function *

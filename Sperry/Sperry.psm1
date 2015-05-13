@@ -61,11 +61,11 @@ function Set-DriveMaps {
         $AllDrives
     )
     
-    Show-Progress -msgAction 'Start' -msgSource $PSCmdlet.MyInvocation.MyCommand.Name; # Log start timestamp
+    Show-Progress -msgAction 'Start' -msgSource $MyInvocation.MyCommand.Name; # Log start timestamp
 
     # $AllDrives = 1 (true) means map all drives; 0 (false) means only map H: and S:
-    write-log -Message 'Mapping Network Drives' -Function $PSCmdlet.MyInvocation.MyCommand.Name
-	if (Test-AdminPerms) { Write-Log -Message 'Mapping drives with a different account, may result in them NOT appearing properly in Explorer' -Function $PSCmdlet.MyInvocation.MyCommand.Name -verbose; }
+    write-log -Message 'Mapping Network Drives' -Function $MyInvocation.MyCommand.Name
+	if (Test-AdminPerms) { Write-Log -Message 'Mapping drives with a different account, may result in them NOT appearing properly in Explorer' -Function $MyInvocation.MyCommand.Name -verbose; }
 
     # Define all drive letter = UNC path pairs here; we can control which-ones-to-map later
     $uncPaths = @{	
@@ -81,39 +81,39 @@ function Set-DriveMaps {
 	# loop through all defined drive mappings
 	$uncPaths.Keys | ForEach-Object {
 		if (!(Test-Path ${_}:)) {
-			write-log -Message "New-PSDrive ${_}: "$uncPaths.${_} -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+			write-log -Message "New-PSDrive ${_}: "$uncPaths.${_} -Function $MyInvocation.MyCommand.Name;
 			New-PSDrive -Persist -Name ${_} -Root $uncPaths.${_} -PSProvider FileSystem -scope Global -ErrorAction:SilentlyContinue;
         }
 		Start-Sleep -m 500;
         }
     } else {
     	if (!(Test-Path H:)) {
-		    write-log -Message "New-PSDrive H: $($uncPaths.H)" -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+		    write-log -Message "New-PSDrive H: $($uncPaths.H)" -Function $MyInvocation.MyCommand.Name;
 		    New-PSDrive -Persist -Name H -Root "$($uncPaths.H)" -PSProvider FileSystem -scope Global; # -ErrorAction:SilentlyContinue;
         }
 
     	if (!(Test-Path S:)) {
-		    Write-Log -Message "New-PSDrive S: $($uncPaths.S)" -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+		    Write-Log -Message "New-PSDrive S: $($uncPaths.S)" -Function $MyInvocation.MyCommand.Name;
 		    New-PSDrive -Persist -Name S -Root "$($uncPaths.S)" -PSProvider FileSystem -scope Global; # -ErrorAction:SilentlyContinue;
         }
     }
-    Show-Progress -msgAction 'Stop' -msgSource $PSCmdlet.MyInvocation.MyCommand.Name; # Log end timestamp; #  'SetDriveMaps'; # Log end timestamp
+    Show-Progress -msgAction 'Stop' -msgSource $MyInvocation.MyCommand.Name; # Log end timestamp; #  'SetDriveMaps'; # Log end timestamp
 }
 
 # Define Remove-DriveMaps function
 function Remove-DriveMaps {
-    Show-Progress -msgAction 'Start' -msgSource $PSCmdlet.MyInvocation.MyCommand.Name; # Log start timestamp; #  'RemoveDriveMaps'; # Log start timestamp
-    Write-Log -Message 'Removing mapped network drives' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+    Show-Progress -msgAction 'Start' -msgSource $MyInvocation.MyCommand.Name; # Log start timestamp;
+    Write-Log -Message 'Removing mapped network drives' -Function $MyInvocation.MyCommand.Name;
 	get-psdrive -PSProvider FileSystem | ForEach-Object {
 		if (${_}.DisplayRoot -like '\\*') {
 #			$driveData = 'Remove-psdrive ',${_}.Name,': ',${_}.DisplayRoot; #  -verbose"; # debugging
 #			 $logLine =  $driveData -join ' ';
 #			write-log $logLine;
-			write-output "`t$(${_}.Name): $(${_}.DisplayRoot)"
-#			remove-psdrive ${_};
+			Write-Log -Message "Remove-psdrive $(${_}.Name): $(${_}.DisplayRoot)" -Function $MyInvocation.MyCommand.Name -Verbose;
+			remove-psdrive ${_};
 		}
 	}
-    Show-Progress -msgAction 'Stop' -msgSource $PSCmdlet.MyInvocation.MyCommand.Name; # Log end timestamp; #  'RemoveDriveMaps'; # Log end timestamp
+    Show-Progress -msgAction 'Stop' -msgSource $MyInvocation.MyCommand.Name; # Log end timestamp;
 }
 
 function Connect-WiFi {
@@ -141,23 +141,23 @@ function Connect-WiFi {
         $SSID = 'Halcyon'
     )
 
-    Show-Progress -msgAction 'Start' -msgSource $PSCmdlet.MyInvocation.MyCommand.Name; # Log start timestamp; #  'Connect-WiFi'; # Log start timestamp
-    Write-Log -Message 'Check that SophosFW is stopped' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+    Show-Progress -msgAction 'Start' -msgSource $MyInvocation.MyCommand.Name; # Log start timestamp; #  'Connect-WiFi'; # Log start timestamp
+    Write-Log -Message 'Check that SophosFW is stopped' -Function $MyInvocation.MyCommand.Name;
     if (Get-SophosFW('Running')) { Set-SophosFW -ServiceAction Stop}
 
-    Write-Log -Message 'enumerate wifi adapters (e.g. Intel(R) Wireless-N 7260)' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+    Write-Log -Message 'enumerate wifi adapters (e.g. Intel(R) Wireless-N 7260)' -Function $MyInvocation.MyCommand.Name;
     $wireless_adapters = @(Get-CimInstance Win32_NetworkAdapter -Filter "PhysicalAdapter=True AND Name LIKE '%ireless%'" | Select-Object -Property Name,NetConnectionID,NetConnectionStatus)
     ForEach-Object -InputObject $wireless_adapters {
-        Write-Log -Message "Connecting $PSItem.NetConnectionID to $SSID" -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+        Write-Log -Message "Connecting $PSItem.NetConnectionID to $SSID" -Function $MyInvocation.MyCommand.Name;
         while ($PSitem.NetConnectionStatus -ne 2){
-            Write-Log -Message "netsh.exe wlan connect $SSID" -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+            Write-Log -Message "netsh.exe wlan connect $SSID" -Function $MyInvocation.MyCommand.Name;
             Invoke-Command -ScriptBlock {netsh.exe wlan connect "$SSID"} # ; # > $null
             Start-Sleep -Seconds 30;
         }
     }
     return $SSID, $?
 
-    Show-Progress -msgAction 'Stop' -msgSource $PSCmdlet.MyInvocation.MyCommand.Name; # Log end timestamp; #  'Connect-WiFi'; # Log end timestamp
+    Show-Progress -msgAction 'Stop' -msgSource $MyInvocation.MyCommand.Name; # Log end timestamp; #  'Connect-WiFi'; # Log end timestamp
 
 }
 
@@ -172,8 +172,8 @@ function Disconnect-WiFi {
 
         True - indicates the netsh command returned successful
     #>
-    Show-Progress -msgAction 'Start' -msgSource $PSCmdlet.MyInvocation.MyCommand.Name; # Log start timestamp; #  'Disconnect-WiFi'; # Log start timestamp
-    Write-Log -Message 'netsh.exe wlan disconnect' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+    Show-Progress -msgAction 'Start' -msgSource $MyInvocation.MyCommand.Name; # Log start timestamp; #  'Disconnect-WiFi'; # Log start timestamp
+    Write-Log -Message 'netsh.exe wlan disconnect' -Function $MyInvocation.MyCommand.Name;
     Invoke-Command -ScriptBlock {netsh.exe wlan disconnect}; # > $null}
     <# http://www.powertheshell.com/reference/wmireference/root/cimv2/Win32_NetworkAdapter/
 
@@ -196,7 +196,7 @@ function Disconnect-WiFi {
     #>
     
     return $?;
-    Show-Progress -msgAction 'Stop' -msgSource $PSCmdlet.MyInvocation.MyCommand.Name; # Log end timestamp; #  'Disconnect-WiFi'; # Log end timestamp
+    Show-Progress -msgAction 'Stop' -msgSource $MyInvocation.MyCommand.Name; # Log end timestamp; #  'Disconnect-WiFi'; # Log end timestamp
 }
 
 function Get-IPAddress {
@@ -225,13 +225,12 @@ NAME        :  Get-IPAddress
 VERSION     :  1.0.0
 LAST UPDATED:  5/1/2015
 AUTHOR      :  Bryan Dady
-.LINK
-Write-Log
 .INPUTS
 None
 .OUTPUTS
 Write-Log
 #>
+    New-Variable -Name outputobj -Description 'Object to be returned by this function'
     Get-WmiObject -Class Win32_NetworkAdapterConfiguration  -Filter 'IpEnabled = True AND DhcpEnabled = True' | 
         foreach {
             switch ($PSItem.IPAddress) {
@@ -254,7 +253,8 @@ Write-Log
                 'SiteName'=$SiteName;
                 'Gateway'=$PSItem.DefaultIPGateway;
                 'DNSServers'=$PSItem.DNSServerSearchOrder;
-                'AdapterHost'=$PSItem.PSComputerName; }
+                'AdapterHost'=$PSItem.PSComputerName;
+            }
             $object = New-Object –TypeName PSObject –Prop $properties
 
             # Add this resulting object to the array object to be returned by this function
@@ -262,9 +262,9 @@ Write-Log
     } # foreach
     return $outputobj;
 
-} # end function Get-IPAddress
+    break;
 
-Get-IPAddress
+} # end function Get-IPAddress
 
 function Redo-DHCP {
 <#
@@ -297,12 +297,11 @@ function Start-CitrixReceiver {
 
     Show-Progress -msgAction 'Start' -msgSource $MyInvocation.MyCommand.Name; # Log start timestamp;
 
-Set-PSDebug -Trace 1
 	if (Test-AdminPerms) {
 		Start-Service -Name RSCorSvc -ErrorAction:SilentlyContinue;
 		Start-Service -Name RadeSvc -ErrorAction:SilentlyContinue; # Citrix Streaming Service
 		Start-Service -Name RSCorSvc -ErrorAction:SilentlyContinue; # Citrix System Monitoring Agent
-		# write-log "Stopping Citrix agents, and then restarting receiver 'clean'." -verbose;
+		# Write-Log -Message 'Stopping Citrix agents, and then restarting Receiver clean.' -Function $MyInvocation.MyCommand.Name -verbose;
 		# invoke-expression -command "$PSScriptRoot\checkProcess.ps1 receiver Stop # Stop Citrix"; so it can be restarted clean
 #		invoke-expression -command "$PSScriptRoot\checkProcess.ps1 receiver Start"; # re-start Citrix
 #		invoke-expression -command "$PSScriptRoot\checkProcess.ps1 concentr Start"; # re-start Citrix
@@ -312,8 +311,12 @@ Set-PSDebug -Trace 1
 #		invoke-expression -command "$PSScriptRoot\checkProcess.ps1 nsepa Stop"; # Citrix Access Gateway EPA Server
 	} else {
 		Write-Log -Message 'Need to elevate privileges for proper completion ... requesting admin credentials.' -Function $MyInvocation.MyCommand.Name -verbose;
-		# DEBUG : write-log "start-process powershell Start-CitrixReceiver -verb RunAs -Wait -ErrorAction:SilentlyContinue" -verbose;
+        # Before we launch an elevated process, check (via function) that UAC is conveniently set
+        Set-UAC;
+
+Set-PSDebug -Step
 		start-process -FilePath powershell.exe -ArgumentList '-Command {Start-CitrixReceiver}' -verb RunAs -Wait -Debug; # -ErrorAction:SilentlyContinue;
+Set-PSDebug -Off
 	}
 	# Confirm Citrix XenApp shortcuts are available, and then launch
 	if (test-path "$env:USERPROFILE\Desktop\Outlook Web Access.lnk") {
@@ -327,12 +330,11 @@ Set-PSDebug -Trace 1
 		Write-Log -Message 'Unable to locate XenApp shortcuts. Please check network connectivity to workplace resources and try again.' -Function $MyInvocation.MyCommand.Name -verbose;
 	}
     Show-Progress -msgAction 'Stop' -msgSource $MyInvocation.MyCommand.Name; # Log end timestamp; #  'StartCitrixReceiver'; # Log end timestamp
-    Set-PSDebug -Off
 
 }
 
 function Set-UAC {
-    Show-Progress -msgAction 'Start' $PSCmdlet.MyInvocation.MyCommand.Name; # Log start timestamp
+    Show-Progress -msgAction 'Start' $MyInvocation.MyCommand.Name; # Log start timestamp
     # Check current UAC level via registry
     # We want ConsentPromptBehaviorAdmin = 5
     # thanks to http://forum.sysinternals.com/display-uac-status_topic18490_page3.html
@@ -341,7 +343,7 @@ function Set-UAC {
 	    & $env:SystemDrive\Windows\System32\UserAccountControlSettings.exe;
     }
     Start-Sleep -Seconds 5;
-    Show-Progress -msgAction 'Stop' -msgSource $PSCmdlet.MyInvocation.MyCommand.Name; # Log end timestamp
+    Show-Progress -msgAction 'Stop' -msgSource $MyInvocation.MyCommand.Name; # Log end timestamp
 }
 
 function Set-Workplace {
@@ -353,26 +355,26 @@ function Set-Workplace {
         [ValidateSet('Office', 'Remote')]
         $zone
     )
-    Show-Progress -msgAction Start -msgSource $PSCmdlet.MyInvocation.MyCommand.Name; 
+    Show-Progress -msgAction Start -msgSource $MyInvocation.MyCommand.Name; 
     switch ($zone) {
         'Office' {
-            Write-Log -Message 'netsh.exe wlan disconnect' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+            Write-Log -Message 'netsh.exe wlan disconnect' -Function $MyInvocation.MyCommand.Name;
             Invoke-Command -ScriptBlock {netsh.exe wlan disconnect}; # disconnect any wi-fi
 
-            Write-Log -Message 'Start FW Services' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+            Write-Log -Message 'Start FW Services' -Function $MyInvocation.MyCommand.Name;
     	    Set-SophosFW -ServiceAction Start;
 
-            Write-Log -Message 'Map network drives' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+            Write-Log -Message 'Map network drives' -Function $MyInvocation.MyCommand.Name;
             Set-DriveMaps;
 
-            Write-Log -Message 'Start Citrix Receiver' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+            Write-Log -Message 'Start Citrix Receiver' -Function $MyInvocation.MyCommand.Name;
             Start-CitrixReceiver;
             # Sync files
-#	        Write-Log -Message 'Running Profile-Sync' -Function $PSCmdlet.MyInvocation.MyCommand.Name -verbose;
+#	        Write-Log -Message 'Running Profile-Sync' -Function $MyInvocation.MyCommand.Name -verbose;
 #     ** replace with direct access to the function via inclusion of the ps1 file in this Sperry module
 #       *** First the Profile-Sync function(s) need to be cleaned up and modularized     
 #
-#	        Write-Log -Message 'Done with Profile-Sync' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+#	        Write-Log -Message 'Done with Profile-Sync' -Function $MyInvocation.MyCommand.Name;
 
             # Check default printer name, and re-set if necesarry
             # ** RFE enhance to ask for printer name, select from list based on current IP
@@ -385,7 +387,7 @@ function Set-Workplace {
                     '10.100.*' { }
                 } 
                 # XenApp Session
-                Write-Log -Message 'Set Default network printer to GBCI91_IT252' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+                Write-Log -Message 'Set Default network printer to GBCI91_IT252' -Function $MyInvocation.MyCommand.Name;
                 if ((Get-Printer -Default).Name -ne 'GBCI91_IT252') {
                     Set-Printer -printerShareName GBCI91_IT252
                 }
@@ -395,22 +397,23 @@ function Set-Workplace {
             # Make sure stuff I always want running is 'still' running
             # for SysInternals ProcExp, check if it's already running, because re-launching it, doesn't stay minimized
             # In the following block it's referred to as 'taskmgr', because the procexp option was used to replace native taskmgr (Win7)
-            Write-Log -Message 'Temporarily updating UAC prompt level' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
-            Start-Process -FilePath "$env:SystemRoot\System32\UserAccountControlSettings.exe" -Wait;
+            Write-Log -Message 'Temporarily updating UAC prompt level' -Function $MyInvocation.MyCommand.Name;
+            Set-UAC;
     	    
-            Write-Log -Message 'Stop FW Services' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+            Write-Log -Message 'Stop FW Services' -Function $MyInvocation.MyCommand.Name;
             Set-SophosFW -ServiceAction Stop;
 
-            Write-Log -Message 'Dismount mapped network drives' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+            Write-Log -Message 'Dismount mapped network drives' -Function $MyInvocation.MyCommand.Name;
             Remove-DriveMaps;
 
-            Write-Log -Message 'Clear CAG cookies from IE' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+            Write-Log -Message 'Clear CAG cookies from IE' -Function $MyInvocation.MyCommand.Name;
             Clear-IECookies 'cag';
 
-            Write-Log -Message 'Connect to default Wi-Fi network' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+            Write-Log -Message 'Connect to default Wi-Fi network' -Function $MyInvocation.MyCommand.Name;
             Connect-WiFi;
 
-            Write-Log -Message 'Open MobilePASS' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+<# * MobilePass client control deprecated
+            Write-Log -Message 'Open MobilePASS' -Function $MyInvocation.MyCommand.Name;
             # Seek & destroy MobilePass font file, which doesn't properly cleanup upon app close, allegedly due to a recent MS patch
             if (!(get-process mobilepass -ErrorAction Ignore)) {
                 # only proceed if mobilePass isn't already open
@@ -429,24 +432,24 @@ function Set-Workplace {
     
                 & "$env:SystemDrive\SWTOOLS\MobilePass\MobilePass.exe";
             }
-
-            <# Update IE home page to skip intranet and go straight to CAG
-            Write-Log -Message 'Setting CAG as Internet Explorer start page.' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+#>
+            # Update IE home page to skip intranet and go straight to CAG
+            Write-Log -Message 'Setting CAG as Internet Explorer start page.' -Function $MyInvocation.MyCommand.Name;
             Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Internet Explorer\Main' -Name 'Start Page' -Value 'https://cag.glacierbancorp.com/' -force -ErrorAction:SilentlyContinue 
             Set-ItemProperty -Path 'HKCU:\Software\Policies\Microsoft\Internet Explorer\Main' -Name 'Start Page' -Value 'https://cag.glacierbancorp.com/' -force -ErrorAction:SilentlyContinue
-            #>
+
             & "$env:ProgramFiles\Internet Explorer\iexplore.exe" 'https://cag.glacierbancorp.com'
-            #	Write-Log -Message 'Running Evernote' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+            #	Write-Log -Message 'Running Evernote' -Function $MyInvocation.MyCommand.Name;
             #	start-process powershell.exe "$PSScriptRoot\checkProcess.ps1 evernote Start";
         }
         Default {}
     }
 
-    Write-Log -Message 'Start PortableApps menu' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+    Write-Log -Message 'Start PortableApps menu' -Function $MyInvocation.MyCommand.Name;
     # Start other stuff; nice to haves
     & "$env:SystemDrive\SWTOOLS\Start.exe"; # Start PortableApps menu
 
-    Write-Log -Message 'Open Process Explorer, minimized' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+    Write-Log -Message 'Open Process Explorer, minimized' -Function $MyInvocation.MyCommand.Name;
 	# for SysInternals ProcExp, check if it's already running, because re-launching it, doesn't stay minimized
 	if (Get-Process procexp -ErrorAction:SilentlyContinue) {
 		# Write-Host " FYI: Process Explorer is already running.";
@@ -454,21 +457,21 @@ function Set-Workplace {
         Set-ProcessState taskmgr Start; # -verb open -windowstyle Minimized;
 	}
 
-    Write-Log -Message 'Open Firefox' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+    Write-Log -Message 'Open Firefox' -Function $MyInvocation.MyCommand.Name;
     if (!(Set-ProcessState -Action Test 'firefox')) {Set-ProcessState -Action Start Firefox}
 
-#	Write-Log -Message 'Running puretext' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+#	Write-Log -Message 'Running puretext' -Function $MyInvocation.MyCommand.Name;
 #	start-process powershell.exe -command {"$PSScriptRoot\checkProcess.ps1 puretext Start"};
 #	start-process powershell.exe -command {"$PSScriptRoot\checkProcess.ps1 chrome Start"};
 	
 <#	# Reminders: 
 	# Open all desktop PDF files
-	Write-Log -Message 'Opening all Desktop Documents' -Function $PSCmdlet.MyInvocation.MyCommand.Name;
+	Write-Log -Message 'Opening all Desktop Documents' -Function $MyInvocation.MyCommand.Name;
 	Get-ChildItem $env:USERPROFILE\Desktop\*.pdf | foreach { & $_ }
 	# Open all desktop Word doc files
 	Get-ChildItem $env:USERPROFILE\Desktop\*.doc* | foreach { & $_ }
 #>
-    Show-Progress -msgAction Stop -msgSource $PSCmdlet.MyInvocation.MyCommand.Name;  # Log end timestamp
+    Show-Progress -msgAction Stop -msgSource $MyInvocation.MyCommand.Name;  # Log end timestamp
 }
 
 Export-ModuleMember -function Set-Workplace, Connect-WiFi, Set-DriveMaps, Remove-DriveMaps, Start-CitrixReceiver, Get-IECookies, Clear-IECookies, Get-IPAddress, Get-Printer, Set-Printer, Get-SophosFW, Set-SophosFW, Set-ProcessState, Start-XenApp -alias *

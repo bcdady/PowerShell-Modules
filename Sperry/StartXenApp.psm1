@@ -14,6 +14,7 @@ $XenApps = @{
 	mstsc		= 'GBCI02XA:RDP Client';
 	onenote 	= 'GBCI02XA:Microsoft OneNote 2010'
 	outlook 	= 'GBCI02XA:Microsoft Outlook 2010';
+    powerpoint  = 'GBCI02XA:Microsoft Powerpoint 2010';
 	rdp			= 'GBCI02XA:RDP Client';
 	s_drive 	= 'GBCI02XA:S Drive';
 	word		= 'GBCI02XA:Microsoft Word 2010'
