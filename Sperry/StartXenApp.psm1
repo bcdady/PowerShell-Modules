@@ -1,10 +1,11 @@
-﻿#Requires -Version 3.0 -Modules PSLogger
+﻿#Requires -Version 3.0 -Modules Sperry, PSLogger
 
 # Predefine XenApp Qlaunch arguments for running Citrix [pnagent] applications
 # By Predefining at the script scope, we can evaluate parameters using ValidateScript against this hashtable
 $XenApps = @{
 	assyst		= 'GBCI02XA:Assyst';
 	communicator = 'GBCI02XA:Office Communicator';
+	cmd  		= 'GBCI02XA:Command Line';
 	ocs 		= 'GBCI02XA:Office Communicator';
 	excel		= 'GBCI02XA:Microsoft Excel 2010'
 	h_drive 	= 'GBCI02XA:H Drive';

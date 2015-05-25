@@ -92,7 +92,7 @@ function Backup-Logs {
             Write-Log -Message "Archiving files older than $age days." -Function $MyInvocation.MyCommand.Name -Verbose;
             Write-Log -Message " # # # BEGIN ROBOCOPY # # # # #`n" -Function $MyInvocation.MyCommand.Name;
         
-            Write-Log -Message "About to run robocopy, logging to ""$path\Backup-Logs_$logFileDateString.log""" -Function $MyInvocation.MyCommand.Name -Debug;
+            Write-Log -Message "About to run robocopy, logging to ""$path\Backup-Logs_$logFileDateString.log""" -Function $MyInvocation.MyCommand.Name;
 
             & robocopy.exe """$path"" ""$path\archive"" /MINAGE:$age /MOV /R:1 /W:1 /NS /NC /NP /NDL /TEE" | Out-File -FilePath "$path\Backup-Logs_$logFileDateString.log" -Append -NoClobber; # /LOG+:$path\Backup-Logs_$logFileDateString.log
 

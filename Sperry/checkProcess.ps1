@@ -1,42 +1,41 @@
-
-<#
-.SYNOPSIS
-	checkProcess.ps1 is designed to simplify process management for frequently used executables / applications.
-    It can be used to find and check that a process is running, including waiting / pausing while that process is still running (e.g. waiting for a setup to complete before proceeding), or stop any running process.
-    If the path to a process is defined within the script's $knownPaths table, it can also be used to specifically control the arguments and startup behavior of those programs.
-	
-.DESCRIPTION
-	checkProcess.ps1 is can be used to find and check that any process is running, including waiting / pausing while that process is still running (e.g. waiting for a setup to complete before proceeding), or stop a running process.
-    If the path to a process is defined within the script's $knownPaths hash-table, it can also be used to specifically control the arguments and startup behavior of those programs.
-
-.PARAMETER 	processName
-	Name of process to check for, start up, or stop
-
-.PARAMETER Start
-    Run the script in Start mode, which includes looking up the processName parameter in the $knownPaths table, and then invoking accordingly
-
-.PARAMETER Stop
-    Run the script in Stop mode, which starts a seek and destroy mission for the specified processName on the local OS
-
-.EXAMPLE
-   checkProcess.ps1 -processName notepad -start
-
-.Notes
-    LANG	: PowerShell
-    NAME	: checkProcess.ps1
-    AUTHOR	: Bryan Dady
-    DATE	: 11/25/09
-    COMMENT	: Shared script for controlling a common set of processes for various modes
-            : History - 2014 Jun 25 Added / updated Citrix knownPaths
-            : History - 2015 Mar 20 Moved Citrix knownPaths and related PNAgent.exe controll to StartXenApp.ps1, and incorporated both checkProcess.ps1 and StartXenApp.ps1 into the recently crafted Sperry Module for PowerShell 
-	
-.LINK
-	https://URL
-
-.Outputs
-	Calls Write-Log.ps1 to write a progress log to the file system, as specified in the setup block of the script
-#>
 #Requires -Version 3.0 -Modules PSLogger
+<#
+        .SYNOPSIS
+        checkProcess.ps1 is designed to simplify process management for frequently used executables / applications.
+        It can be used to find and check that a process is running, including waiting / pausing while that process is still running (e.g. waiting for a setup to complete before proceeding), or stop any running process.
+        If the path to a process is defined within the script's $knownPaths table, it can also be used to specifically control the arguments and startup behavior of those programs.
+	
+        .DESCRIPTION
+        checkProcess.ps1 is can be used to find and check that any process is running, including waiting / pausing while that process is still running (e.g. waiting for a setup to complete before proceeding), or stop a running process.
+        If the path to a process is defined within the script's $knownPaths hash-table, it can also be used to specifically control the arguments and startup behavior of those programs.
+
+        .PARAMETER 	processName
+        Name of process to check for, start up, or stop
+
+        .PARAMETER Start
+        Run the script in Start mode, which includes looking up the processName parameter in the $knownPaths table, and then invoking accordingly
+
+        .PARAMETER Stop
+        Run the script in Stop mode, which starts a seek and destroy mission for the specified processName on the local OS
+
+        .EXAMPLE
+        checkProcess.ps1 -processName notepad -start
+
+        .Notes
+        LANG	: PowerShell
+        NAME	: checkProcess.ps1
+        AUTHOR	: Bryan Dady
+        DATE	: 11/25/09
+        COMMENT	: Shared script for controlling a common set of processes for various modes
+        : History - 2014 Jun 25 Added / updated Citrix knownPaths
+        : History - 2015 Mar 20 Moved Citrix knownPaths and related PNAgent.exe controll to StartXenApp.ps1, and incorporated both checkProcess.ps1 and StartXenApp.ps1 into the recently crafted Sperry Module for PowerShell 
+	
+        .LINK
+        https://URL
+
+        .Outputs
+        Calls Write-Log.ps1 to write a progress log to the file system, as specified in the setup block of the script
+#>
 
 $myName = $MyInvocation.MyCommand.Name; # Contains only filename.ext leaf; for full path and filename, use $PSCommandPath
 [bool]$prompt  = $false;
@@ -45,28 +44,11 @@ $myName = $MyInvocation.MyCommand.Name; # Contains only filename.ext leaf; for f
 [cmdletbinding()]
 $loggingPreference='Continue';
 
-<# Use regular expression make a .log file that matches this scripts name; makes logging portable
-$MyInvocation.MyCommand.Name -match "(.*)\.\w{2,3}?$" *>$NULL; $myLogName = $Matches.1;
-$logFilePref = Join-Path -Path $loggingPath -ChildPath "$myLogName-$logFileDateString.log"
-#>
-
-<# Detect -debug mode:
-# https://kevsor1.wordpress.com/2011/11/03/powershell-v2-detecting-verbose-debug-and-other-bound-parameters/
-# RFE : also update other modules (esp. PSLogger) and scripts with same logging functionality
-if ($PSBoundParameters['Debug'].IsPresent) {
-	[bool]$testMode = $true; 
-    $logFilePref = Join-Path -Path $loggingPath -ChildPath "$myLogName-test-$logFileDateString.log"
-} else {
-	[bool]$testMode = $false; 
-    $logFilePref = Join-Path -Path $loggingPath -ChildPath "$myLogName-$logFileDateString.log"
-}
-#>
-
 # =======================================
 # Start with empty process arguments / parameters 
 $CPargs   = '';
 # Define hash/associative array of known paths for executable files
-# IMPORTANT: key needs to match executable name for STOP and wait modes to work
+# IMPORTANT: key needs to match executable name for STOP and Wait modes to work
 # NOTE: start arguments are added later so that the same key can be used for starting and stopping processes
 [hashtable]$knownPaths = @{
     almon		= "$env:ProgramFiles\Sophos\AutoUpdate\ALMon.exe";
@@ -106,23 +88,21 @@ $CPargs   = '';
 # Predefine 'prompt-list' to control which processes invoke user approval and which ones terminate silently
 $askTerminate =@('receiver','outlook','iexplore','chrome','firefox');
 
-# Pre-defined procedures
+# Functions
 # =======================================
-
 # checkProcess([Process Name], [Start|Stop])
 function Set-ProcessState {
-	# Setup Advanced Function Parameters
-	[cmdletbinding()]
-	Param (
-		[parameter(Position=0)]
+    [cmdletbinding()]
+    Param (
+        [parameter(Position=0)]
         [ValidateNotNullOrEmpty()]
-		[String[]]
-		$ProcessName,
+        [String[]]
+        $ProcessName,
 
-		[parameter(Position=1)]
-		[ValidateSet('Start', 'Stop', 'Test')]
-		[String[]]
-		$Action,
+        [parameter(Position=1)]
+        [ValidateSet('Start', 'Stop', 'Test')]
+        [String[]]
+        $Action,
 
         [Parameter(Position=2)]
         [ValidateNotNullOrEmpty()]
@@ -130,92 +110,92 @@ function Set-ProcessState {
         [switch] 
         $ListAvailable
 
-	  ) 
+    ) 
 
     if ($PSBoundParameters.ContainsKey('ListAvailable')) { 
         Write-Log -Message "`nEnumerating all available `$XenApps Keys" -Function ProcessState -Verbose;
-		$knownPaths | Sort-Object -Property Name | format-table -AutoSize
+        $knownPaths | Sort-Object -Property Name | format-table -AutoSize
     } else {
-	    $process = Get-Process $ProcessName -ErrorAction:SilentlyContinue;
+        $process = Get-Process $ProcessName -ErrorAction:SilentlyContinue;
     }
-
-	switch ($action) {
-	    'Start' { if (!($?)) {
-		# unsuccessful getting $process aka NOT running
-		if ($knownPaths.Keys -contains $ProcessName) {
-			# specify unique launch/start parameters
-			switch ($ProcessName) {
-				'receiver'		{$CPargs = '/startup';}
-				'concentr'		{$CPargs = '/startup';}
-				'evernote'		{$CPargs = '/minimized';}
-				'xmarkssync'	{$CPargs = '-q';}
-				'taskmgr'		{$CPargs = '/t'; }
-			}
-			# launch process from known path, with specified argument(s)
-			if (($CPargs | measure-object -Character).Characters -gt 1) {
-				Write-Log -Message "Starting $ProcessName < $knownPaths["$ProcessName"] > -ArgumentList $CPargs" -Function ProcessState;
-                Start-Process -FilePath $knownPaths["$ProcessName"] -ArgumentList $CPargs -WindowStyle Minimized
-			} else {
-				# no ArgumentList
-				Write-Log -Message "Starting $ProcessName < $knownPaths["$ProcessName"] >" -Function ProcessState
-                Start-Process -FilePath $knownPaths["$ProcessName"] -WindowStyle Minimized
-			}
-		} else {
-			Write-Log -Message "Path to launch '$ProcessName' is undefined" -Function ProcessState  -verbose;
-		}
-		}	
-	}
+Set-PSDebug -Trace 2
+    switch ($action) {
+        'Start' { if (!($?)) {
+                # unsuccessful getting $process aka NOT running
+                if ($knownPaths.Keys -contains $ProcessName) {
+                    # specify unique launch/start parameters
+                    switch ($ProcessName) {
+                        'receiver'		{$CPargs = '/startup';}
+                        'concentr'		{$CPargs = '/startup';}
+                        'evernote'		{$CPargs = '/minimized';}
+                        'xmarkssync'	{$CPargs = '-q';}
+                        'taskmgr'		{$CPargs = '/t'; }
+                    }
+                    # launch process from known path, with specified argument(s)
+                    if (($CPargs | measure-object -Character).Characters -gt 1) {
+                        Write-Log -Message "Starting $ProcessName < $knownPaths["$ProcessName"] > -ArgumentList $CPargs" -Function ProcessState;
+                        Start-Process -FilePath $knownPaths["$ProcessName"] -ArgumentList $CPargs -WindowStyle Minimized
+                    } else {
+                        # no ArgumentList
+                        Write-Log -Message "Starting $ProcessName < $knownPaths["$ProcessName"] >" -Function ProcessState
+                        Start-Process -FilePath $knownPaths["$ProcessName"] -WindowStyle Minimized
+                    }
+                } else {
+                    Write-Log -Message "Path to launch '$ProcessName' is undefined" -Function ProcessState  -verbose;
+                }
+            }	
+        }
         'Stop' { if ($?) {
-		# $process is running
-		if ($askTerminate -contains $ProcessName) {
-			# processName is running, prompt to close
-			write-log "$ProcessName is running."
-			$confirm = Read-Host "`n # ACTION REQUIRED # `nClose $ProcessName, then type ok and click [Enter] to proceed.`n"
-		while (!($prompt )) {
-			if($confirm -ilike 'ok') { $prompt = $true }
-			else {
-				Write-Log -Message "Invalid response '$confirm'" -Function ProcessState  -verbose;
-				$confirm = Read-Host "`n # ACTION REQUIRED # `nType ok and click [Enter] once $ProcessName is terminated."
-			}
-		}
-		start-sleep 1; # wait one second to allow time for $process to stop
-		# Check if the process was stopped after we asked
-		$process = Get-Process $ProcessName -ErrorAction:SilentlyContinue
-		while ($process) {
-            # Application/process is still running, prompt to terminate
-            Write-Log -Message "$ProcessName is still running." -Function ProcessState  -verbose;
-            $response = Read-Host "Would you like to force terminate? `n[Y] Yes  [N] No  (default is 'null'):"
-            if($response -ilike 'Y') {
-				# Special handling for Citrix PNAgent
-				if (($ProcessName -eq 'receiver') -or ($ProcessName -eq 'pnamain')) {
-					# If we try to stop Citrix Receiver; we first try to terminate these related processes / services in a graceful order
-					Write-Log -Message 'Stopping Citrix Receiver (and related processes, services)' -Function ProcessState  -verbose;
-					start-process $knownPaths.pnagent -ArgumentList '/terminatewait' -RedirectStandardOutput .\pnagent-termwait.log -RedirectStandardError .\pnagent-twerr.log;
-					start-process $knownPaths.concentr -ArgumentList '/terminate' -RedirectStandardOutput .\pnagent-term.log -RedirectStandardError .\pnagent-termerr.log;
-					Stop-Service -Name cdfsvc -force; # Citrix Diagnostic Facility COM Server
-					Stop-Service -Name RadeSvc -force -ErrorAction:Continue; # Citrix Streaming Client Service
-					Stop-Service -Name RadeHlprSvc -force -ErrorAction:Continue; # Citrix Streaming Helper Service
-					Set-ProcessState radeobj Stop # Citrix Offline Plug-in Session COM Server; child of pnamain.exe
-					Set-ProcessState redirector Stop; # Citrix 
-					Set-ProcessState prefpanel Stop; # Citrix 
-					Set-ProcessState nsepa Stop # Citrix Access Gateway EPA Server
-					Set-ProcessState concentr Stop; # Citrix 
-					Set-ProcessState wfcrun32 Stop; # Citrix Connection Manager; child of ssonsvr.exe
-					Set-ProcessState wfica32 Stop; # Citrix  
-				#	Set-ProcessState pnamain Stop; # Citrix 
-					Set-ProcessState receiver Stop; # Citrix
-				}
-                # if not Citrix Special handling is needed, then we stop the process
-				$process | foreach {stop-process terminate($process).id};
-			} elseif($response -ilike 'N') {
-			# manually override termination
-			break;
-		} else {
-			Write-Log -Message "Invalid response '$response'." -Function ProcessState  - verbose;
-		}
-		# confirm process is terminated
-		$process = Get-Process $ProcessName -ErrorAction:SilentlyContinue | out-null
-		}
+                # $process is running
+                if ($askTerminate -contains $ProcessName) {
+                    # processName is running, prompt to close
+                    write-log "$ProcessName is running."
+                    $confirm = Read-Host "`n # ACTION REQUIRED # `nClose $ProcessName, then type ok and click [Enter] to proceed.`n"
+                    while (!($prompt )) {
+                        if($confirm -ilike 'ok') { $prompt = $true }
+                        else {
+                            Write-Log -Message "Invalid response '$confirm'" -Function ProcessState  -verbose;
+                            $confirm = Read-Host "`n # ACTION REQUIRED # `nType ok and click [Enter] once $ProcessName is terminated."
+                        }
+                    }
+                    start-sleep 1; # wait one second to allow time for $process to stop
+                    # Check if the process was stopped after we asked
+                    $process = Get-Process $ProcessName -ErrorAction:SilentlyContinue
+                    while ($process) {
+                        # Application/process is still running, prompt to terminate
+                        Write-Log -Message "$ProcessName is still running." -Function ProcessState  -verbose;
+                        $response = Read-Host "Would you like to force terminate? `n[Y] Yes  [N] No  (default is 'null'):"
+                        if($response -ilike 'Y') {
+                            # Special handling for Citrix PNAgent
+                            if (($ProcessName -eq 'receiver') -or ($ProcessName -eq 'pnamain')) {
+                                # If we try to stop Citrix Receiver; we first try to terminate these related processes / services in a graceful order
+                                Write-Log -Message 'Stopping Citrix Receiver (and related processes, services)' -Function ProcessState  -verbose;
+                                start-process $knownPaths.pnagent -ArgumentList '/terminatewait' -RedirectStandardOutput .\pnagent-termwait.log -RedirectStandardError .\pnagent-twerr.log;
+                                start-process $knownPaths.concentr -ArgumentList '/terminate' -RedirectStandardOutput .\pnagent-term.log -RedirectStandardError .\pnagent-termerr.log;
+                                Stop-Service -Name cdfsvc -force; # Citrix Diagnostic Facility COM Server
+                                Stop-Service -Name RadeSvc -force -ErrorAction:Continue; # Citrix Streaming Client Service
+                                Stop-Service -Name RadeHlprSvc -force -ErrorAction:Continue; # Citrix Streaming Helper Service
+                                Set-ProcessState radeobj Stop # Citrix Offline Plug-in Session COM Server; child of pnamain.exe
+                                Set-ProcessState redirector Stop; # Citrix 
+                                Set-ProcessState prefpanel Stop; # Citrix 
+                                Set-ProcessState nsepa Stop # Citrix Access Gateway EPA Server
+                                Set-ProcessState concentr Stop; # Citrix 
+                                Set-ProcessState wfcrun32 Stop; # Citrix Connection Manager; child of ssonsvr.exe
+                                Set-ProcessState wfica32 Stop; # Citrix  
+                                #	Set-ProcessState pnamain Stop; # Citrix 
+                                Set-ProcessState receiver Stop; # Citrix
+                            }
+                            # if not Citrix Special handling is needed, then we stop the process
+                            $process | foreach {stop-process terminate($process).id};
+                        } elseif($response -ilike 'N') {
+                            # manually override termination
+                            break;
+                        } else {
+                            Write-Log -Message "Invalid response '$response'." -Function ProcessState  - verbose;
+                        }
+                        # confirm process is terminated
+                        $process = Get-Process $ProcessName -ErrorAction:SilentlyContinue | out-null
+                    }
                 } else {
                     # kill the process
                     $process | foreach {stop-process terminate($process).id};
@@ -244,18 +224,20 @@ function Set-ProcessState {
             }
             write-progress -activity "Waiting for $ProcessName" -status '.' -Completed #-percentcomplete (100)
         }
-       # default {}
+        # default {}
     }
+Set-PSDebug -Off
+    
 }
 
 function Test-ProcessState {
-	# Setup Advanced Function Parameters
-	[cmdletbinding()]
-	Param (
-		[parameter(Position=0)]
+    # Setup Advanced Function Parameters
+    [cmdletbinding()]
+    Param (
+        [parameter(Position=0)]
         [ValidateNotNullOrEmpty()]
-		[String[]]
-		$ProcessName,
+        [String[]]
+        $ProcessName,
 
         [Parameter(Position=2)]
         [ValidateNotNullOrEmpty()]
@@ -263,7 +245,7 @@ function Test-ProcessState {
         [switch] 
         $ListAvailable
 
-	  ) 
+    ) 
 
     if ($PSBoundParameters.ContainsKey('ListAvailable')) { 
         Write-Log -Message "`nEvaluating predefined process paths" -Function ProcessState -Verbose;
@@ -275,7 +257,7 @@ function Test-ProcessState {
                 Write-Warning -Message "Unable to confirm $app target at path $($knownPaths.$app)";
             }
         }
-		# $knownPaths | Sort-Object -Property Name | format-table -AutoSize
+        # $knownPaths | Sort-Object -Property Name | format-table -AutoSize
     } else {
         # Check if $ProcessName is running
         Write-Log -Message "Checking if $ProcessName is running" -Function ProcessState

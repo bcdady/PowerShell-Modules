@@ -1,4 +1,5 @@
-﻿<#
+﻿#Requires -Version 3.0 -Modules Sperry, PSLogger
+<#
 .SYNOPSIS
     SophosFW.ps1 belongs to the Sperry 'autopilot' module, which includes functions to automate getting into and out of work mode.
 .DESCRIPTION
@@ -22,7 +23,6 @@
 .OUTPUTS
     Write-Log
 #>
-#Requires -Version 3.0 -Modules Sperry
 function Get-SophosFW {
     # Checks status of Sophos firewall services
     [CmdletBinding()]
@@ -88,7 +88,7 @@ Set-PSDebug -Trace 1
 
     $ErrorActionPreference = 'SilentlyContinue';
     Show-Progress -Mode Start -Action SophosFW; # Log start timestamp
-    if (Test-AdminPerms) {
+    if (Test-LocalAdmin) {
 		# We already have elevated permissions; proceed with controlling services
         switch ($ServiceAction) {
             'Start' {
@@ -110,26 +110,28 @@ Set-PSDebug -Trace 1
         # Before we attempt to elevate permissions, check current services state 
         switch ($ServiceAction) {
             'Start' {
-		        if ( Get-SophosFW -ServiceStatus Running ) {
-			        Write-Log -Message 'Sophos firewall services confirmed running' -Function SophosFW -verbose;
-		        } else {
-			        Write-Log -Message 'Need to elevate privileges for proper completion ... requesting admin credentials.' -Function SophosFW;
-			        start-process -FilePath "$PSHOME\powershell.exe" -ArgumentList ' -Command {Get-Service Sophos* | start-Service; Get-Service Swi* | start-Service -ErrorAction:SilentlyContinue;}' -verb RunAs -Wait;
-			        Write-Log -Message 'Elevated privileges session completed ... firewall services running :' -Function SophosFW;
+                if ( Get-SophosFW -ServiceStatus Running ) {
+                    Write-Log -Message 'Sophos firewall services confirmed running' -Function SophosFW -verbose;
+                } else {
+                    Set-UAC;
+                    Write-Log -Message 'Need to elevate privileges for proper completion ... requesting admin credentials.' -Function SophosFW;
+                    start-process -FilePath "$PSHOME\powershell.exe" -ArgumentList ' -Command {Get-Service Sophos* | start-Service; Get-Service Swi* | start-Service -ErrorAction:SilentlyContinue;}' -verb RunAs -Wait;
+                    Write-Log -Message 'Elevated privileges session completed ... firewall services running :' -Function SophosFW;
                     Get-SophosFW -ServiceStatus Running;
-		        }
+                }
             }
             'Stop' {
-		        if (Get-SophosFW -ServiceStatus Stopped) {
-			        Write-Log -Message 'Sophos firewall services confirmed stopped' -Function SophosFW -verbose;
-		        } else {
-			        Write-Log -Message 'Need to elevate privileges for proper completion ... requesting admin credentials.' -Function SophosFW -Debug;
-Set-PSDebug -Step
-			        start-process -FilePath powershell.exe -ArgumentList '-NoProfile -NoLogo -NonInteractive -Command "& {Get-Service Sophos* > $env:userprofile\Documents\WindowsPowerShell\log\stop-sophos.log; Get-Service Sophos* | stop-Service; Get-Service Swi* >> $env:userprofile\Documents\WindowsPowerShell\log\stop-sophos.log; Get-Service Swi* | stop-Service; start-sleep 1; Get-Service sophos* >> $env:userprofile\Documents\WindowsPowerShell\log\stop-sophos.log; Get-Service Swi* >> $env:userprofile\Documents\WindowsPowerShell\log\stop-sophos.log}"' -verb RunAs -Wait; # -ErrorAction SilentlyContinue | Write-Log -Function SophosFW -Debug
-Set-PSDebug -Off
-			        Write-Log -Message 'Elevated privileges session completed ... firewall services stopped: ' -Function SophosFW -Verbose;
+                if (Get-SophosFW -ServiceStatus Stopped) {
+                    Write-Log -Message 'Sophos firewall services confirmed stopped' -Function SophosFW -verbose;
+                } else {
+                    Set-UAC;
+                    Write-Log -Message 'Need to elevate privileges for proper completion ... requesting admin credentials.' -Function SophosFW -Debug;
+                    Set-PSDebug -Step
+                    start-process -FilePath powershell.exe -ArgumentList '-NoProfile -NoLogo -NonInteractive -Command "& {Get-Service Sophos* > $env:userprofile\Documents\WindowsPowerShell\log\stop-sophos.log; Get-Service Sophos* | stop-Service; Get-Service Swi* >> $env:userprofile\Documents\WindowsPowerShell\log\stop-sophos.log; Get-Service Swi* | stop-Service; start-sleep 1; Get-Service sophos* >> $env:userprofile\Documents\WindowsPowerShell\log\stop-sophos.log; Get-Service Swi* >> $env:userprofile\Documents\WindowsPowerShell\log\stop-sophos.log}"' -verb RunAs -Wait -Debug; # -ErrorAction SilentlyContinue | Write-Log -Function SophosFW 
+                    Set-PSDebug -Off
+                    Write-Log -Message 'Elevated privileges session completed ... firewall services stopped: ' -Function SophosFW -Verbose;
                     Get-SophosFW -ServiceStatus Stopped;
-		        }
+                }
             }
         }
 	}

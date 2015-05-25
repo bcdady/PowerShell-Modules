@@ -5,6 +5,8 @@
     PrinterFunctions.psm1 - Provides common functions for retrieving info and controlling printer settings
 #>
 
+# *** RFE : Enumberate domain / directory published printers, with their address, subnet and/or vlan.
+
 # Define new global variable for default printer
 New-Variable -Name DefaultPrinter -Description 'Default Printer' -Scope Global
 
