@@ -23,45 +23,49 @@ None
 function Get-IECookies {
     param (
         [Parameter(
-            Mandatory=$true,
-            Position=0,
-            ValueFromPipeline=$false,
-            ValueFromPipelineByPropertyName=$true,
-            HelpMessage='Specify web site to search within cookies for. Accepts any string, including wildcards.')]
-        [ValidateNotNullOrEmpty()]
+                Mandatory=$false,
+                Position=0,
+                ValueFromPipeline=$true,
+                ValueFromPipelineByPropertyName=$true,
+        HelpMessage='Specify web site to search within cookies for. Accepts any string, including wildcards.')]
         [alias('address','site','URL')]
         [String]
-        $cookieURI
-        
+        $cookieURI = '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
     )
 
-    Show-Progress -msgAction Start -msgSource $MyInvocation.MyCommand.Name;
-    $cookieFiles = @(Get-Childitem ([system.environment]::getfolderpath('cookies')) | Select-String -Pattern "$cookieURI" | Select-Object -Unique Path, Line); #  | Format-List -Property *
+    Show-Progress -msgAction Start -msgSource Sperry;
+    Start-Sleep -Milliseconds 20
+    Write-Log -Message "Getting IE cookie files, matching search pattern: '$cookieURI'" -Function Sperry
+    
+    if ($cookieURI -eq '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}') {Write-Log -Message 'No URI parameter was specified, so you''ll see all cookies from an IP(v4) address' -Function Sperry -Verbose}
+    $cookieMatches = @(Get-Childitem ([system.environment]::getfolderpath('cookies')) | Select-String -Pattern "$cookieURI" | Select-Object -Property FileName,Line,Path);
 
-    if ($cookieFiles -ne $null) {
-        $cookieFiles  | ForEach-Object {
-            $cookieFiles += $PSItem
-        }
-    }
-    Show-Progress -msgAction Stop -msgSource $MyInvocation.MyCommand.Name; # Log end timestamp
-    return $cookieFiles;
+    Show-Progress -msgAction Stop -msgSource Sperry; # Log end timestamp
+    return $cookieMatches;
 }
 
 # *** RFE : only process unique file paths. Currently 
 
 function Clear-IECookies {
-    param ( [String]$URL )
+    param (
+        [Parameter(
+                Mandatory=$false,
+                Position=0,
+                ValueFromPipeline=$true,
+                ValueFromPipelineByPropertyName=$true,
+        HelpMessage='Specify web site to search cookies files for. Can be left blank / null; accepts any string, including wildcards.')]
+        [alias('address','site','URL')]
+        [String]
+        $cookieURI = '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
+    )
+    Show-Progress -msgAction Start -msgSource Sperry; # Log start timestamp
 
-    Show-Progress -msgAction Start -msgSource $MyInvocation.MyCommand.Name; # Log start timestamp
-    $URL = 'rubicon'
-    Get-IECookies -cookieURI $URL | 
-        ForEach-Object
-        -Begin {check unique} 
-        -Process {
-            write-output "Remove-Item -Path $($PSItem.Path)"
-            # Remove-Item -Path $PSItem.Path -Force;
-        }
-        -End {"we're done"}
+    Write-Log -Message "Getting IE cookie files to be cleared. Calling: Get-IECookies -cookieURI $cookieURI" -Function Sperry
+    Get-IECookies -cookieURI $cookieURI | Select-Object -Unique Path |
+        ForEach-Object {
+                Write-Log -Message "Deleting IE Cookie file: $($PSItem.Path)" -Function Sperry
+                Remove-Item -Path $PSItem.Path -Force;
+            }
 
-    Show-Progress -msgAction Stop -msgSource $MyInvocation.MyCommand.Name; # Log end timestamp
+    Show-Progress -msgAction Stop -msgSource Sperry; # Log end timestamp
 }

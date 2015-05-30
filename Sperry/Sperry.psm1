@@ -152,11 +152,8 @@ function Connect-WiFi {
     $wireless_adapters = @(Get-CimInstance Win32_NetworkAdapter -Filter "PhysicalAdapter=True AND Name LIKE '%ireless%'" | Select-Object -Property Name,NetConnectionID,NetConnectionStatus)
     ForEach-Object -InputObject $wireless_adapters {
         Write-Log -Message "Connecting $PSItem.NetConnectionID to $SSID" -Function $MyInvocation.MyCommand.Name;
-        while ($PSitem.NetConnectionStatus -ne 2){
-            Write-Log -Message "netsh.exe wlan connect $SSID" -Function $MyInvocation.MyCommand.Name;
-            Invoke-Command -ScriptBlock {netsh.exe wlan connect "$SSID"} # ; # > $null
-            Start-Sleep -Seconds 30;
-        }
+        Write-Log -Message "netsh.exe wlan connect $SSID" -Function $MyInvocation.MyCommand.Name;
+        Invoke-Command -ScriptBlock {netsh.exe wlan connect "$SSID"};
     }
     return $SSID, $?
 
@@ -345,6 +342,10 @@ function Set-UAC {
         & $env:SystemDrive\Windows\System32\UserAccountControlSettings.exe;
     }
     Start-Sleep -Seconds 5;
+    
+    # Wait for UAC to be complete before proceeding
+    Set-ProcessState -ProcessName 'UserAccountControlSettings' -Action Test
+    
     Show-Progress -msgAction 'Stop' -msgSource $MyInvocation.MyCommand.Name; # Log end timestamp
 }
 
@@ -470,7 +471,7 @@ function Set-Workplace {
     }
 
     Write-Log -Message 'Open Firefox' -Function $MyInvocation.MyCommand.Name;
-    Set-ProcessState -Action Start Firefox
+    Set-ProcessState -ProcessName Firefox -Action Start 
 
     #	Write-Log -Message 'Running puretext' -Function $MyInvocation.MyCommand.Name;
     #	start-process powershell.exe -command {"$PSScriptRoot\checkProcess.ps1 puretext Start"};

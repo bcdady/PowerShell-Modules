@@ -94,17 +94,17 @@ $askTerminate =@('receiver','outlook','iexplore','chrome','firefox');
 function Set-ProcessState {
     [cmdletbinding()]
     Param (
-        [parameter(Position=0)]
+        [parameter(Position=0,Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [String[]]
         $ProcessName,
 
-        [parameter(Position=1)]
+        [parameter(Position=1,Mandatory = $true)]
         [ValidateSet('Start', 'Stop', 'Test')]
         [String[]]
         $Action,
 
-        [Parameter(Position=2)]
+        [Parameter(Position=2,Mandatory = $false)]
         [ValidateNotNullOrEmpty()]
         [Alias('list', 'show', 'enumerate')]
         [switch] 
@@ -116,9 +116,9 @@ function Set-ProcessState {
         Write-Log -Message "`nEnumerating all available `$XenApps Keys" -Function ProcessState -Verbose;
         $knownPaths | Sort-Object -Property Name | format-table -AutoSize
     } else {
-        $process = Get-Process $ProcessName -ErrorAction:SilentlyContinue;
+        $process = Get-Process -Name $ProcessName -ErrorAction:SilentlyContinue;
     }
-Set-PSDebug -Trace 2
+
     switch ($action) {
         'Start' { if (!($?)) {
                 # unsuccessful getting $process aka NOT running
@@ -186,7 +186,10 @@ Set-PSDebug -Trace 2
                                 Set-ProcessState receiver Stop; # Citrix
                             }
                             # if not Citrix Special handling is needed, then we stop the process
-                            $process | foreach {stop-process terminate($process).id};
+                            $process | foreach {
+                                write-log -Message "Stop-Process $($PSItem.ProcessName) (ID $($process.id))" -Function ProcessState
+                                stop-process -Id $process.id
+                            };
                         } elseif($response -ilike 'N') {
                             # manually override termination
                             break;
@@ -198,12 +201,15 @@ Set-PSDebug -Trace 2
                     }
                 } else {
                     # kill the process
-                    $process | foreach {stop-process terminate($process).id};
+                    $process | foreach {
+                        write-log -Message "Stop-Process $($PSItem.ProcessName) (ID $($process.id))" -Function ProcessState
+                        stop-process -Id $process.id
+                    };
                 }
             }
         }
         'Test' {
-            # default mode is a wait mode
+            # default mode is a test / wait & see mode
             # Write-Warning "$myName: waiting for $ProcessName"
             # Check if $ProcessName is running
             Write-Log -Message "Checking if $ProcessName is running" -Function ProcessState
@@ -226,7 +232,6 @@ Set-PSDebug -Trace 2
         }
         # default {}
     }
-Set-PSDebug -Off
     
 }
 
@@ -234,7 +239,7 @@ function Test-ProcessState {
     # Setup Advanced Function Parameters
     [cmdletbinding()]
     Param (
-        [parameter(Position=0)]
+        [parameter(Position=0,Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [String[]]
         $ProcessName,
@@ -250,11 +255,11 @@ function Test-ProcessState {
     if ($PSBoundParameters.ContainsKey('ListAvailable')) { 
         Write-Log -Message "`nEvaluating predefined process paths" -Function ProcessState -Verbose;
         foreach ($app in $knownPaths.Keys) {
-            write-Debug -Message "$app = $($knownPaths.$app)";
+            Write-Log -Message "$app = $($knownPaths.$app)" -Function ProcessState;
             if (Test-Path -Path $knownPaths.$app -PathType Leaf) {
-                Write-output -InputObject "Confirmed $app target at path $($knownPaths.$app)";
+                Write-Log -Message "Confirmed $app target at path $($knownPaths.$app)" -Function ProcessState;
             } else {
-                Write-Warning -Message "Unable to confirm $app target at path $($knownPaths.$app)";
+                Write-Log -Message "Unable to confirm $app target at path $($knownPaths.$app)" -Verbose -Function ProcessState;
             }
         }
         # $knownPaths | Sort-Object -Property Name | format-table -AutoSize
@@ -265,7 +270,7 @@ function Test-ProcessState {
         $process = Get-Process $ProcessName -ErrorAction:SilentlyContinue # | out-null
         if ($process) {
             # it appears to be running
-            return $true;
+            return $process;
         } else {
             return $false;
         }

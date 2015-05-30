@@ -84,8 +84,6 @@ function Set-SophosFW {
         $ServiceAction
     )
 
-Set-PSDebug -Trace 1
-
     $ErrorActionPreference = 'SilentlyContinue';
     Show-Progress -Mode Start -Action SophosFW; # Log start timestamp
     if (Test-LocalAdmin) {
@@ -136,6 +134,4 @@ Set-PSDebug -Trace 1
         }
 	}
     Show-Progress -Mode Stop -Action SophosFW; # Log stop timestamp
-    
-Set-PSDebug -Off
 }
