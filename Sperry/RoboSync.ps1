@@ -43,7 +43,7 @@ $monthNames = (new-object system.globalization.datetimeformatinfo).MonthNames; #
 [string]$thisMonth = $monthNames[((Get-Date).Month-1)]; # Get the name of the current month by looking up get-date results in $monthNames (zero-based) array
 $logFileDateString = get-date -UFormat '%Y%m%d';
 $logFileName = "robocopy_$logFileDateString.log";
-$robocopyOptions = "/S /R:1 /W:1 /NS /NC /NP /LOG+:$loggingPath\$logFileName /TEE /XF `~`$* desktop.ini *.log Win8RP-Pro-Boot.zip /XD log `$RECYCLE.BIN Assyst-CUG DAI ""Win8 ADK"" ""My Demos"" EIT KRosling SnagIt TFEM NO-SYNC";
+$robocopyOptions = "/S /R:1 /W:1 /NJH /NS /NC /NP /LOG+:$loggingPath\$logFileName /TEE /XF `~`$* desktop.ini *.log Win8RP-Pro-Boot.zip /XD log `$RECYCLE.BIN Assyst-CUG DAI ""Win8 ADK"" ""My Demos"" Reference GitHub .git .hg EIT KRosling SnagIt Synergy TFEM NO-SYNC $env:USERPROFILE\Documents\Scripts\archive\ $env:USERPROFILE\Documents\Scripts\borrowed\ $env:USERPROFILE\Documents\Scripts\FastTrack\ $env:USERPROFILE\Documents\Scripts\MyScripts\ $env:USERPROFILE\Documents\WindowsPowerShell\For-TechNet-Gallery\ $(Resolve-Path -Path $env:USERPROFILE\Documents\WindowsPowerShell\Modules\ISESteroids*) ""$env:USERPROFILE\Documents\WindowsPowerShell\PowerShell.org eBooks"" $env:USERPROFILE\Documents\WindowsPowerShell\Scripts $env:USERPROFILE\Documents\WindowsPowerShell\Snippets $env:USERPROFILE\Documents\WindowsPowerShell\workbench";
 
 # ======= ROBOSYNC FUNCTION =============
 function Start-Robosync  {
@@ -58,9 +58,9 @@ Synchronizes all files from mapped network drive H:\My Documents folder, to loca
 *** Note *** : Note the triple-quotes around the source value, because it has a space in the value string, and we need to carefully wrap it up before passing to robocopy.exe
 .NOTES
 NAME        :  Start-Robosync
-VERSION     :  1.4.1   
-LAST UPDATED:  5/29/2015
-AUTHOR      :  GLACIERBANCORP\bdady
+VERSION     :  1.4.3
+LAST UPDATED:  6/8/2015
+
 .LINK
 Sperry.psm1 
 Write-Log.psm1 
@@ -84,7 +84,7 @@ None
         [ValidateScript({Test-Path -Path $_ -PathType Container -IsValid})]
         $Destination
     )
-    Show-Progress -msgAction Start -msgSource RoboSync    
+    Show-Progress -msgAction Start -msgSource RoboSync;
 
     if ($Destination -imatch 'C:\\Users\\') {
         #unless cleanRemote, presume we're robo-syncing recently changed files from remote shares to local, so don't sync back anything that hasn't been touched in the past 90 days
@@ -104,7 +104,7 @@ None
     }
 
     # if -whatif was included, proceed with dry run
-    if (!$PSCmdlet.ShouldProcess($AddedFolder) ) {
+    if (!$PSCmdlet.ShouldProcess($Destination) ) {
         # update log file name to specify test mode, and add /L switch to robocopy options to run in List Only mode 
         $loggingPath = $loggingPath -replace '\\log\\', '\\log\\test\\' # 'log\testing' -Resolve;
         $robocopyOptions = $robocopyOptions, '/L' -join ' ';
@@ -118,14 +118,16 @@ None
         Start-Process robocopy.exe """$Source"" ""$Destination"" $robocopyOptions" -wait -verb open  2> $loggingPath\robocopy-errors.log 3> $loggingPath\robocopy-warnings.log; # 3>&2 didn't work
         [bool]$showLog = $?
     }
-    Write-Log -Message "`t`t[spacer]`n" -Function Robosync;
+    Write-Log -Message "_`n" -Function Robosync;
 
     # show results from the just-created Robosync log file
-    if ($showLog) {
+    if (($showLog) -and (Test-Path -Path $loggingPath\$logFileName -PathType Leaf )) {
         Write-Output -InputObject 'Preparing to display progress logged by Robocopy ...' -Verbose;
         Start-Sleep -Seconds 6;
         Get-Content -Path $loggingPath\$logFileName -Tail 77; # -Tail 77 controls that only the last n lines are shown
-    } 
+    } else {
+        Write-Log -Message "`$showLog: $showLog; LogFileName: $loggingPath\$logFileName" -Debug;
+    }
     
     Show-Progress -msgAction Stop -msgSource RoboSync    
     

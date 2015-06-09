@@ -154,6 +154,7 @@ function Connect-WiFi {
         Write-Log -Message "Connecting $PSItem.NetConnectionID to $SSID" -Function $MyInvocation.MyCommand.Name;
         Write-Log -Message "netsh.exe wlan connect $SSID" -Function $MyInvocation.MyCommand.Name;
         Invoke-Command -ScriptBlock {netsh.exe wlan connect "$SSID"};
+        Start-Sleep -Seconds 10;
     }
     return $SSID, $?
 

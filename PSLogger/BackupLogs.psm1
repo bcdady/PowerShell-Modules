@@ -60,14 +60,14 @@ function Backup-Logs {
     Show-Progress -msgAction Start -msgSource $MyInvocation.MyCommand.Name
 
     Write-Log -Message "Checking `$path: $path" -Function $MyInvocation.MyCommand.Name;
-    $path="$env:USERPROFILE\Documents\WindowsPowerShell\log"; # Degug only
+
     if (Test-Path -Path "$path") {
         # confirmed $path exists; see if \archive subfolder exists
         if (Test-Path -Path "$path\archive") {
             Write-Log -Message 'confirmed archive folder exists' -Function $MyInvocation.MyCommand.Name;
             # set variable LastLogBackup based on the latest log file in $path\archive
             $LastLogFile = Get-ChildItem -Path $path\archive -Filter *.log -File | Sort-Object -Property LastWriteTime -Descending | Select-Object -First 1;
-            Set-Variable -Name LastLogBackup -Value (Get-Date -Date $LastLogFile.LastAccessTime -DisplayHint Date -Format d) -PassThru; #s; #r; #y; #u;
+            Set-Variable -Name LastLogBackup -Value (Get-Date -Date $LastLogFile.LastAccessTime -DisplayHint Date -Format d) -PassThru;
 
             Write-Log -Message "LastLogBackup was $LastLogBackup" -Function $MyInvocation.MyCommand.Name;
             Set-Variable -Name NextBackupDate -Value (Get-Date -Date $LastLogBackup).AddDays($BackupCadence) -PassThru
@@ -82,7 +82,7 @@ function Backup-Logs {
             # log archive path doesn't yet exist, so create it
             Write-Log -Message 'Creating archive folder' -Function $MyInvocation.MyCommand.Name;
             New-Item -itemtype Directory -path $path\archive;
-            Set-Variable -Name LastLogBackup -Value (Get-Date -DisplayHint Date -Format d); #s; #r; #y; #u;
+            Set-Variable -Name LastLogBackup -Value (Get-Date -DisplayHint Date -Format d);
             # Since we've never backed up to this path before, leave $backupNow = $true
         }
 
@@ -94,7 +94,7 @@ function Backup-Logs {
         
             Write-Log -Message "About to run robocopy, logging to ""$path\Backup-Logs_$logFileDateString.log""" -Function $MyInvocation.MyCommand.Name;
 
-            & robocopy.exe """$path"" ""$path\archive"" /MINAGE:$age /MOV /R:1 /W:1 /NS /NC /NP /NDL /TEE" | Out-File -FilePath "$path\Backup-Logs_$logFileDateString.log" -Append -NoClobber; # /LOG+:$path\Backup-Logs_$logFileDateString.log
+            & robocopy.exe """$path"" ""$path\archive"" /MINAGE:$age /MOV /R:1 /W:1 /NS /NC /NP /NDL /TEE" | Out-File -FilePath "$path\Backup-Logs_$logFileDateString.log" -Append -NoClobber;
 
             Write-Log -Message " # # # END ROBOCOPY # # # # #`n" -Function $MyInvocation.MyCommand.Name;
 

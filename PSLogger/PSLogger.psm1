@@ -28,6 +28,7 @@
 # [string]$LastFunction;
 New-Variable -Name LastFunction -Description "Retain 'state' of the last function name called, to streamline logging statements from the same function" -Force -Scope Global -Visibility Public
 [bool]$writeIntro=$true
+[string]$global:LastFunction;
 
 Function Write-Log {
 <#
@@ -102,7 +103,7 @@ TryMe -log e:\logs\sample.txt -verbose
                    HelpMessage='The Function Parameter passes the name of the Function or CmdLet that invoked this Write-Log function')]
         [ValidateNotNullOrEmpty()]
         [Alias('Action', 'Source')]
-        [String]
+        [String[]]
         $Function,
 
         [Parameter(Position=2,
@@ -115,34 +116,33 @@ TryMe -log e:\logs\sample.txt -verbose
 
     )
 
-# * DEBUG * show bound parameters
-#    $PSBoundParameters;
-
     # Detect -debug mode:
     # http://blogs.msdn.com/b/powershell/archive/2009/04/06/checking-for-bound-parameters.aspx
     # https://kevsor1.wordpress.com/2011/11/03/powershell-v2-detecting-verbose-debug-and-other-bound-parameters/
     if ($PSBoundParameters['Debug'].IsPresent) {
 	    [bool]$testMode = $true; 
-        $logFilePref = Join-Path -Path "$loggingPath\testing" -ChildPath "$("$Function", "$logFileDateString" -join '_').log"
+        $logFilePref = Join-Path -Path "$loggingPath\test" -ChildPath "$("$Function", "$logFileDateString" -join '_').log"
     } else {
 	    [bool]$testMode = $false; 
-        $logFilePref = Join-Path -Path "$loggingPath" -ChildPath "$("$Function", "$logFileDateString" -join '_').log"; # "$Function_$logFileDateString.log"
+        $logFilePref = Join-Path -Path "$loggingPath" -ChildPath "$("$Function", "$logFileDateString" -join '_').log";
     }
 
+    # Assign Function variable to 'PowerShell' if blank or null
+    if (($Function -eq $null) -or ($Function -eq '')) { $Function = 'PowerShell' }
+
     # Detect if this Function is the same as the $LastFunction. If not, verbosely log which new Function is active
-#  RFE :: Set Function to 'PowerShell' if blank
-<#    if ($Function -eq $LastFunction) {
+    if ($Function -eq $LastFunction) {
         # Retain 'state' of the last function name called, to streamline logging statements from the same function
-        Write-Output -Message "Function is $Function";
-        Write-Output -Message "LastFunction is $LastFunction";
+#        Write-Debug -Message "Function is $Function";
+#        Write-Debug -Message "LastFunction is $LastFunction";
         $writeIntro=$false;
     } else {
-        Write-Log -Message "Shifting from LastFunction $LastFunction to $Function, so `$writeIntro=`$true" -Function $MyInvocation.MyCommand.Name;
+#        Write-Debug -Message "Shifting from LastFunction $LastFunction to $Function, so `$writeIntro=`$true";
         Set-Variable -Name LastFunction -Value $Function -Force -Scope Global
         $writeIntro=$true;
-        Write-Debug -Message "LastFunction is now $LastFunction" -Function $MyInvocation.MyCommand.Name -Debug;
+#        Write-Output -Message "LastFunction is now $LastFunction";
     }
-#>
+
     #Pass on the message to Write-Debug cmdlet if -Debug parameter was used
     if ($testMode) {
         Write-Debug -Message $Message;
@@ -150,7 +150,7 @@ TryMe -log e:\logs\sample.txt -verbose
     } elseif ($PSBoundParameters['Verbose'].IsPresent) {
         #Pass on the message to Write-Verbose cmdlet if -Verbose parameter was used
         Write-Verbose -Message $Message;
-        if ($writeIntro -and ( $Message -notlike 'Exit*')) { Write-Host -Object "Logging [Verbose] to $logFilePref`n" };
+        if ($writeIntro -and ( $Message -notlike 'Exit*')) { Write-Host -Object "Logging to $logFilePref`n" };
     }
 
     #only write to the log file if the $LoggingPreference variable is set to Continue

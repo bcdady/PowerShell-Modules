@@ -226,9 +226,9 @@ function Set-ProcessState {
                 }
                 Write-Log -Message "   still waiting for $ProcessName" -Function ProcessState  -verbose;
                 # check again
-                $process = Get-Process $ProcessName -ErrorAction:SilentlyContinue; #| out-null
+                $process = Get-Process $ProcessName -ErrorAction:SilentlyContinue;
             }
-            write-progress -activity "Waiting for $ProcessName" -status '.' -Completed #-percentcomplete (100)
+            write-progress -activity "Waiting for $ProcessName" -status '.' -Completed;
         }
         # default {}
     }

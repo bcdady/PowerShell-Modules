@@ -29,25 +29,25 @@ PS > Show-Progress 'Stop'; # Log end timestamp
         [Parameter(Mandatory=$true, Position=0)]
         [alias('mode','scope')]
         [ValidateSet('Start', 'Stop',$null)]
-        [String]
+        [String[]]
         $msgAction,
 
         [Parameter(Mandatory=$false, Position=1)]
         [alias('action','source')]
-        [string]
+        [string[]]
         $msgSource = 'PowerShell'
     )
 
 	Switch ($msgAction) {
         'Start' {
-			Write-Log -Message "Starting $msgSource`n" -Function "$msgSource"; # -verbose;
+			Write-Log -Message "Starting $msgSource`n" -Function "$msgSource";
 
 		};
         'Stop'  {
-			Write-Log -Message "Exiting $msgSource`n`n" -Function "$msgSource"; # -verbose;
+			Write-Log -Message "Exiting $msgSource`n`n" -Function "$msgSource";
 
 		};
-        default { Write-Log -Message "continuing $msgSource`n" -Function $msgSource; # -verbose;
+        default { Write-Log -Message "continuing $msgSource`n" -Function $msgSource;
         };
     }
 }
