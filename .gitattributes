@@ -1,2 +1,6 @@
+# PowerShell Module files are Windows ASCii text files
+*.psm1 text eol=crlf
+*.psd1 text eol=crlf
+
 # Disable LF normalization for all files; copied from posh-git repository
 * -text
